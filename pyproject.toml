@@ -1,7 +1,7 @@
 [project]
 name = "click-wrapper"
-version = "0.1"
-description = "Wrapper for clAutomatic Python wrapper generator for Click CLI applications. Generate type-safe dataclasses and wrapper methods from Click command introspection"
+version = "0.1.0"
+description = "Automatic Python wrapper generator for Click CLI applications. Generate type-safe dataclasses and wrapper methods from Click command introspection"
 readme = "README.md"
 authors = [{name = "Michal Sestrienka"}]
 license = "Apache-2.0"
@@ -25,4 +25,7 @@ CI = "https://github.com/mse11/click-wrapper/actions"
 click-wrapper = "click_wrapper.cli:cli"
 
 [project.optional-dependencies]
-test = ["pytest"]
+test = [
+    "pytest",
+    "llm>=0.27.1"
+]
