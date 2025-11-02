@@ -58,9 +58,9 @@ def test_api_help_dump():
 
 def test_api_parse_cli_metadata():
     metadata = ClickUtils.parse_cli_metadata("llm.cli", "cli")
-    import pprint
     print()
-    pprint.pprint(metadata,)
+    import pprint
+    pprint.pprint(metadata, sort_dicts=False)
     # assert sorted(known_llm_commands) == sorted(metadata['help_texts'].keys())
     # assert sorted(known_llm_commands) == sorted(metadata['metadata'].keys())
 
