@@ -1,5 +1,7 @@
 from typing import Dict, Any
 
+from click_wrapper.inspector import ClickInspector
+
 class ClickWrapperGenerator:
     """Generates Python wrapper code from Click CLI metadata."""
 
@@ -10,16 +12,13 @@ class ClickWrapperGenerator:
         "flag": "bool",
     }
 
-    def __init__(self, metadata: Dict[str, Any]):
-        """
-        Initialize the generator with Click metadata.
-
-        Args:
-            metadata: Output from ClickInspector.all_click_metadata()
-        """
-        self.metadata = metadata
-        self.generated_classes = []
-        self.generated_methods = []
+    def __init__(
+            self,
+            inspector: ClickInspector,
+            wrapper_class_name: str = "ClickWrapper"
+    ):
+        self._inspector = inspector
+        self.wrapper_class_name = wrapper_class_name
 
     @staticmethod
     def _to_python_name(name: str) -> str:
@@ -225,21 +224,8 @@ class ClickWrapperGenerator:
 
         return "\n".join(lines)
 
-    def generate_wrapper_class(self,
-                               wrapper_class_name: str = "ClickWrapper",
-                               cli_module: str = "cli",
-                               cli_function: str = "cli") -> str:
-        """
-        Generate complete wrapper class code.
+    def generate_wrapper_class(self) -> str:
 
-        Args:
-            wrapper_class_name: Name for the generated wrapper class
-            cli_module: Module path to the CLI (e.g., "myapp.cli")
-            cli_function: Name of the Click CLI function/group
-
-        Returns:
-            Complete Python source code for the wrapper
-        """
         code_parts = [
             '"""',
             f'Auto-generated wrapper for Click CLI application.',
@@ -249,7 +235,7 @@ class ClickWrapperGenerator:
             'from dataclasses import dataclass, field',
             'from typing import Optional, List, Dict, Tuple, Any',
             'from click.testing import CliRunner',
-            f'import {cli_module}',
+            self._inspector.script_import_to_string,
             '',
             '',
             'class ClickWrapperError(Exception):',
@@ -259,15 +245,17 @@ class ClickWrapperGenerator:
             ''
         ]
 
+        metadata_list = self._inspector.metadata_list
+
         # Generate all options dataclasses
-        for command_path, command_meta in self.metadata.get("metadata", {}).items():
+        for command_path, command_meta in metadata_list:
             options_class = self._generate_options_class(command_path, command_meta)
             code_parts.append(options_class)
             code_parts.append("")
 
         # Generate wrapper class
         code_parts.extend([
-            f'class {wrapper_class_name}:',
+            f'class {self.wrapper_class_name}:',
             f'    """',
             f'    Wrapper for CLI operations using Click\'s CliRunner.',
             f'    ',
@@ -299,7 +287,7 @@ class ClickWrapperGenerator:
             '        Raises:',
             '            ClickWrapperError: If command fails (non-zero exit code)',
             '        """',
-            f'        result = self.runner.invoke({cli_module}.{cli_function}, args, input=input)',
+            f'        result = self.runner.invoke({self._inspector.script_cli_main}, args, input=input)',
             '',
             '        if result.exit_code != 0:',
             '            raise ClickWrapperError(f"Command failed: {result.output}")',
@@ -309,7 +297,7 @@ class ClickWrapperGenerator:
         ])
 
         # Generate all wrapper methods
-        for command_path, command_meta in self.metadata.get("metadata", {}).items():
+        for command_path, command_meta in metadata_list:
             method = self._generate_wrapper_method(command_path, command_meta)
             code_parts.append(method)
 

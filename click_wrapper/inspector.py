@@ -1,9 +1,25 @@
-from click.testing import CliRunner
-from typing import Dict
+from typing import ItemsView, Dict
 
-from click_wrapper.utils import ClickUtils
+from click_wrapper.importer import ClickImporter
+from click.testing import CliRunner
 
 class ClickInspector:
+
+    def __init__(self, importer: ClickImporter):
+        self._importer: ClickImporter = importer
+
+    @property
+    def metadata_list(self) -> ItemsView[str, Dict]:
+        return self.generate_metadata().get("metadata", {}).items()
+
+    @property
+    def script_import_to_string(self) -> str:
+        return self._importer.build_import_line()
+
+    @property
+    def script_cli_main(self) -> str:
+        return str(self._importer.module_global_attribute)
+
 
     @staticmethod
     def _safe_serialize(value):
@@ -46,8 +62,7 @@ class ClickInspector:
             }
         return meta
 
-    @staticmethod
-    def click_metadata(click_cli_main):
+    def generate_metadata(self):
         """Traverse Click command tree and return metadata and help dumps."""
         commands = []
 
@@ -58,7 +73,7 @@ class ClickInspector:
                 for subcommand in command.commands.values():
                     find_commands(subcommand, path + [command.name])
 
-        find_commands(click_cli_main)
+        find_commands(self._importer.click_cli_main)
 
         data = {"metadata": {}, "help_texts": {}}
 
@@ -67,13 +82,12 @@ class ClickInspector:
             data["metadata"][cmd_path or "llm"] = ClickInspector._command_metadata(command)
 
             # Capture help text via CliRunner
-            result = CliRunner().invoke(click_cli_main, path[1:] + ["--help"])
+            result = CliRunner().invoke(self._importer.click_cli_main, path[1:] + ["--help"])
             data["help_texts"][cmd_path or "llm"] = result.output.replace("Usage: cli", "Usage: llm").strip()
 
         return data
 
-    @staticmethod
-    def click_help_dump(click_cli_main):
+    def generate_help_dump(self):
         """Return full help for Click command and its subcommands"""
 
         # Code created by Simon Willison
@@ -87,14 +101,14 @@ class ClickInspector:
             if hasattr(command, 'commands'):
                 for subcommand in command.commands.values():
                     find_commands(subcommand, path + [command.name])
-        find_commands(click_cli_main)
+        find_commands(self._importer.click_cli_main)
         # Remove first item of each list (it is 'cli')
         commands = [command[1:] for command in commands]
         # Now generate help for each one, with appropriate heading level
         output = []
         for command in commands:
             heading_level = len(command) + 2
-            result = CliRunner().invoke(click_cli_main, command + ["--help"])
+            result = CliRunner().invoke(self._importer.click_cli_main, command + ["--help"])
             hyphenated = "-".join(command)
             if hyphenated:
                 hyphenated = "-" + hyphenated
