@@ -1,20 +1,20 @@
 
 from click_wrapper.importer import ClickImporter
 from click_wrapper.inspector import ClickInspector
-from click_wrapper.generator import ClickWrapperGenerator
+# from click_wrapper.generator import ClickWrapperGenerator
 
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, List
 
 class ClickUtils:
 
     @staticmethod
-    def import_from_string(module_import_path: str, module_global_attribute: str = None) -> Any:
+    def import_from_string(py_import_path: str, py_import_path_attribute: str = None) -> Any:
         """
         Dynamically import a module or attribute from a module using string paths.
 
         Args:
-            module_import_path: Dot-separated module path (e.g., 'llm.cli')
-            module_global_attribute: Optional attribute name to retrieve from the module
+            py_import_path: Dot-separated module path (e.g., 'llm.cli')
+            py_import_path_attribute: Optional attribute name to retrieve from the 'py_import_path' module
 
         Returns:
             The imported module, or the specified attribute if provided
@@ -31,48 +31,38 @@ class ClickUtils:
             cli = import_from_string("llm.cli", "cli")
         """
         importer = ClickImporter(
-            module_import_path=module_import_path,
-            module_global_attribute=module_global_attribute,
+            py_import_path=py_import_path,
+            py_import_path_attribute=py_import_path_attribute,
         )
-        return importer.click_cli_main
+        return importer.click_obj_cli_main
+
+    @staticmethod
+    def metadata_commands_names(
+            module_import_path: str,
+            module_global_attribute: str,
+            full_path: bool
+    ) -> List[str]:
+        importer = ClickImporter(
+            py_import_path=module_import_path,
+            py_import_path_attribute=module_global_attribute,
+        )
+        if full_path:
+            return ClickInspector(importer).commands_names_full
+        else:
+            return ClickInspector(importer).commands_names
 
     @staticmethod
     def help_dump(module_import_path: str, module_global_attribute: str) -> str:
         importer = ClickImporter(
-            module_import_path=module_import_path,
-            module_global_attribute=module_global_attribute,
+            py_import_path=module_import_path,
+            py_import_path_attribute=module_global_attribute,
         )
-        return ClickInspector(importer).generate_help_dump()
+        return ClickInspector(importer).commands_help_dump
 
     @staticmethod
-    def parse_cli_metadata(module_import_path: str, module_global_attribute: str) -> Dict:
+    def parse_cli_metadata(module_import_path: str, module_global_attribute: str) -> Dict[str, Dict[str,Dict]]:
         importer = ClickImporter(
-            module_import_path=module_import_path,
-            module_global_attribute=module_global_attribute,
+            py_import_path=module_import_path,
+            py_import_path_attribute=module_global_attribute,
         )
-        return ClickInspector(importer).generate_metadata()
-
-    @staticmethod
-    def generate_wrapper_from_cli(module_import_path: str,
-                                  module_global_attribute: str,
-                                  wrapper_class_name: str = "ClickWrapper",
-                                  output_file: Optional[str] = None) -> str:
-
-        # Extract metadata from cli object
-        importer = ClickImporter(
-            module_import_path=module_import_path,
-            module_global_attribute=module_global_attribute,
-        )
-        inspector = ClickInspector(importer)
-
-        # Generate wrapper
-        generator = ClickWrapperGenerator(inspector, wrapper_class_name=wrapper_class_name)
-        code = generator.generate_wrapper_class()
-
-        # Optionally write to file
-        if output_file:
-            with open(output_file, 'w') as f:
-                f.write(code)
-            print(f"Wrapper generated: {output_file}")
-
-        return code
+        return ClickInspector(importer).commands
