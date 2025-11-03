@@ -39,13 +39,13 @@ def test_api_string_imports():
         ClickUtils.import_from_string("llm.cli_wrong_module_name")
 
 def test_api_metadata_commands_names():
-    commands_names = ClickUtils.metadata_commands_names(
+    commands_names = ClickUtils.commands_names(
         "llm.cli",
         "cli",
         full_path=False)
     assert sorted(known_llm_commands) == sorted(commands_names)
 
-    commands_names = ClickUtils.metadata_commands_names(
+    commands_names = ClickUtils.commands_names(
         "llm.cli",
         "cli",
         full_path=True)
@@ -54,7 +54,7 @@ def test_api_metadata_commands_names():
 def test_api_help_dump():
     help_string = ClickUtils.help_dump("llm.cli", "cli")
     assert help_string.startswith("\n(help)=\n## llm  --help")
-    #print(help_string)
+    print(help_string)
 
 def test_api_parse_cli_metadata():
     metadata = ClickUtils.parse_cli_metadata("llm.cli", "cli")

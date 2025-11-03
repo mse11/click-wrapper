@@ -1,9 +1,8 @@
 
-from click_wrapper.importer import ClickImporter
-from click_wrapper.inspector import ClickInspector
-# from click_wrapper.generator import ClickWrapperGenerator
+from click_wrapper import ClickImporter
+from click_wrapper import ClickGenerator
 
-from typing import Any, Optional, Dict, List
+from typing import Any, Dict, List
 
 class ClickUtils:
 
@@ -37,7 +36,7 @@ class ClickUtils:
         return importer.click_obj_cli_main
 
     @staticmethod
-    def metadata_commands_names(
+    def commands_names(
             module_import_path: str,
             module_global_attribute: str,
             full_path: bool
@@ -47,9 +46,9 @@ class ClickUtils:
             py_import_path_attribute=module_global_attribute,
         )
         if full_path:
-            return ClickInspector(importer).commands_names_full
+            return ClickGenerator(importer).commands_names_full_joined
         else:
-            return ClickInspector(importer).commands_names
+            return ClickGenerator(importer).commands_names_short_joined
 
     @staticmethod
     def help_dump(module_import_path: str, module_global_attribute: str) -> str:
@@ -57,7 +56,7 @@ class ClickUtils:
             py_import_path=module_import_path,
             py_import_path_attribute=module_global_attribute,
         )
-        return ClickInspector(importer).commands_help_dump
+        return ClickGenerator(importer).commands_help_dump
 
     @staticmethod
     def parse_cli_metadata(module_import_path: str, module_global_attribute: str) -> Dict[str, Dict[str,Dict]]:
@@ -65,4 +64,4 @@ class ClickUtils:
             py_import_path=module_import_path,
             py_import_path_attribute=module_global_attribute,
         )
-        return ClickInspector(importer).commands
+        return ClickGenerator(importer).commands

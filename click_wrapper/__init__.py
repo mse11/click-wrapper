@@ -1,14 +1,14 @@
 from typing import Optional
 
-from .inspector import  ClickImporter
-from .inspector import  ClickInspector
-#from .generator import  ClickWrapperGenerator
+from .importer import ClickImporter
+from .parser import ClickParser
+from .generator import ClickGenerator
 from .utils import ClickUtils
 
 __all__ = [
     "ClickImporter",
-    "ClickInspector",
- #   "ClickWrapperGenerator",
+    "ClickParser",
+    "ClickGenerator",
     "ClickUtils",
     #"__version__"
 ]

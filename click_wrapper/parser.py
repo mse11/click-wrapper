@@ -2,10 +2,9 @@ from typing import Dict, Union, List, Tuple, Any, Optional
 from dataclasses import dataclass, field, asdict
 
 from click_wrapper.importer import ClickImporter
-from click.testing import CliRunner
 
 @dataclass
-class ParamInfo:
+class ClickParamData:
     """Information about a Click command parameter."""
     name: str
     param_type_name: str
@@ -17,9 +16,11 @@ class ParamInfo:
     multiple: bool = False
     help: str = ""
 
+    def to_dict(self) -> dict:
+        return asdict(self)
 
 @dataclass
-class CommandMetadata:
+class ClickCommandData:
     """Metadata for a Click command."""
     fnc_name: str
     default_cmd_name: Optional[str] = None
@@ -28,40 +29,56 @@ class CommandMetadata:
     fnc_dbg_subcommands: list[str] = field(default_factory=list)
     fnc_help_short: str = ""
     fnc_help: str = ""
-    fnc_params: list[ParamInfo] = field(default_factory=list)
-    fnc_subcommands: dict[str, 'CommandMetadata'] = field(default_factory=dict)
+    fnc_params: list[ClickParamData] = field(default_factory=list)
+    fnc_subcommands: dict[str, 'ClickCommandData'] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
-        """Convert to dictionary representation."""
         return asdict(self)
 
 @dataclass
-class CommandPath:
-    """Represents a command with its full path in the command tree."""
-    path: list[str]
-    metadata: CommandMetadata
+class ClickMetadata:
+    cmd_base: str
+    cmd_path: list[str]
+    cmd_data: ClickCommandData
+
+    # def cmd_path_to_string(self):
+    #     cmd_path = " ".join(self.cmd_path[1:]) if len(self.cmd_path) > 1 else ""
+
+    @property
+    def name_short(self) -> List[List[str]]:
+        return self._name(full_path=False, joined = False)
+    @property
+    def name_short_joined(self) -> List[str]:
+        return self._name(full_path=False, joined = True)
+    @property
+    def name_full(self) -> List[str]:
+        return self._name(full_path=True, joined = False)
+    @property
+    def name_full_joined(self) -> List[str]:
+        return self._name(full_path=True, joined = True)
+
+    def _name(self, full_path: bool = False, joined: bool = False) -> Union[List[str], List[List[str]]]:
+        prefix = [self.cmd_base] if full_path else []
+        # Remove first item of each list (it is e.g. 'cli')
+        name = prefix + self.cmd_path[1:]
+        return " ".join(name) if joined else name
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+########################################################
 
 @dataclass
-class CommandPaths:
+class ClickParser:
     importer: ClickImporter
-    paths: List[CommandPath] = field(default_factory=list)
+    metadata: List[ClickMetadata] = field(default_factory=list)
 
     def to_dict(self, full_dict: bool = False) -> Dict[str, Dict[str,Dict]]:
         data = {}
-        for p in self.paths:
-            cmd_path = " ".join(p.path[1:]) if len(p.path) > 1 else ""
-            data[cmd_path or self.importer.py_import_package] = p.metadata.to_dict() if full_dict else p.metadata
+        for m in self.metadata:
+            cmd_path = m.name_short_joined or self.importer.py_import_package
+            data[cmd_path] = m.cmd_data.to_dict() if full_dict else m.cmd_data
         return data
-
-    def commands_names(self, full_path: bool = False, joined: bool = False) -> Union[List[str], List[List[str]]]:
-        prefix = [self.script_string_package] if full_path else []
-
-        commands_names = []
-        for p in self.paths:
-            # Remove first item of each list (it is e.g. 'cli')
-            names = prefix + p.path[1:]
-            commands_names.append(" ".join(names) if joined else names)
-        return commands_names
 
     @property
     def script_string_import(self) -> str:
@@ -76,9 +93,9 @@ class CommandPaths:
         return str(self.importer.py_import_package)
 
     @staticmethod
-    def click_parse(importer: ClickImporter) -> 'CommandPaths':
+    def click_parse(importer: ClickImporter) -> 'ClickParser':
         """Traverse Click command tree and return metadata"""
-        commands = CommandPaths(importer)
+        parser = ClickParser(importer)
 
         # Code inspired by Simon Willison
         #  - First find all commands and subcommands
@@ -88,29 +105,30 @@ class CommandPaths:
             parent_cmds_names  = parent_cmds_names or []
             current_cmds_names = parent_cmds_names + [command_obj.name]
 
-            cmd_path_obj = CommandPath(
-                path=current_cmds_names,
-                metadata=CommandPaths._click_parse_command_obj(command_obj)
+            cmd_path_obj = ClickMetadata(
+                cmd_base=parser.script_string_package,
+                cmd_path=current_cmds_names,
+                cmd_data=ClickParser._click_parse_command_obj(command_obj)
             )
 
-            commands.paths.append(cmd_path_obj)
+            parser.metadata.append(cmd_path_obj)
             if hasattr(command_obj, "commands"):
                 for subcommand in command_obj.commands.values():
                     find_commands(subcommand, current_cmds_names)
 
         find_commands(importer.click_obj_cli_main)
 
-        return commands
+        return parser
 
     @staticmethod
-    def _click_parse_command_obj(command) -> CommandMetadata:
+    def _click_parse_command_obj(command) -> ClickCommandData:
         """Extract metadata from a Click command as a CommandMetadata dataclass."""
 
         # Extract parameters
         params = []
         dbg_params = []
         for param in command.params:
-            param_info = CommandPaths._click_parse_param_obj(param)
+            param_info = ClickParser._click_parse_param_obj(param)
             params.append(param_info)
             dbg_params.append(param.name)
 
@@ -119,12 +137,12 @@ class CommandPaths:
         dbg_subcommands = []
         if hasattr(command, "commands"):
             subcommands = {
-                name: CommandPaths._click_parse_command_obj(subcmd)
+                name: ClickParser._click_parse_command_obj(subcmd)
                 for name, subcmd in command.commands.items()
             }
             dbg_subcommands = list(command.commands.keys())
 
-        return CommandMetadata(
+        return ClickCommandData(
             fnc_name=command.name,
             default_cmd_name=getattr(command, "default_cmd_name", None),
             default_if_no_args=getattr(command, "default_if_no_args", None),
@@ -137,15 +155,15 @@ class CommandPaths:
         )
 
     @staticmethod
-    def _click_parse_param_obj(param) -> ParamInfo:
+    def _click_parse_param_obj(param) -> ClickParamData:
         """Extract parameter information into a ParamInfo dataclass."""
-        return ParamInfo(
+        return ClickParamData(
             name=param.name,
             param_type_name=param.param_type_name,
             opts=getattr(param, "opts", []),
             secondary_opts=getattr(param, "secondary_opts", []),
             required=getattr(param, "required", False),
-            default=CommandPaths._safe_serialize(getattr(param, "default", None)),
+            default=ClickParser._safe_serialize(getattr(param, "default", None)),
             nargs=getattr(param, "nargs", 1),
             multiple=getattr(param, "multiple", False),
             help=getattr(param, "help", ""),
@@ -157,64 +175,8 @@ class CommandPaths:
         if isinstance(value, (str, int, float, bool)) or value is None:
             return value
         if isinstance(value, (list, tuple, set)):
-            return [CommandPaths._safe_serialize(v) for v in value]
+            return [ClickParser._safe_serialize(v) for v in value]
         if isinstance(value, dict):
-            return {k: CommandPaths._safe_serialize(v) for k, v in value.items()}
+            return {k: ClickParser._safe_serialize(v) for k, v in value.items()}
         # Fallback: return string representation
         return str(value)
-
-
-########################################################
-
-class ClickInspector:
-
-    def __init__(self, importer: ClickImporter):
-
-        if not importer.py_import_path_attribute:
-            raise ValueError("ClickImporter 'module_global_attribute' must be set ")
-
-        self._metadata = CommandPaths.click_parse(importer)
-
-    @property
-    def commands_names_as_lists(self) -> List[List[str]]:
-        return self._metadata.commands_names(full_path=False, joined = False)
-
-    @property
-    def commands_names(self) -> List[str]:
-        return self._metadata.commands_names(full_path=False, joined = True)
-
-    @property
-    def commands_names_full(self) -> List[str]:
-        return self._metadata.commands_names(full_path=True, joined = True)
-
-    @property
-    def commands(self) -> Dict[str, Dict[str,Dict]]:
-        return self._metadata.to_dict()
-
-    @property
-    def commands_help_dump(self) -> str:
-        """Return full help for Click command and its subcommands (Simon Willison format)"""
-
-        # First find all commands and subcommands
-        # List will be [["command"], ["command", "subcommand"], ...]
-        # Remove first item of each list (it is 'cli')
-        commands = self.commands_names_as_lists
-        # Now generate help for each one, with appropriate heading level
-        output = []
-        for command in commands:
-            heading_level = len(command) + 2
-            result = CliRunner().invoke(self._metadata.importer.click_obj_cli_main, command + ["--help"])
-            hyphenated = "-".join(command)
-            if hyphenated:
-                hyphenated = "-" + hyphenated
-            output.append(f"\n(help{hyphenated})=")
-            output.append("#" * heading_level + " llm " + " ".join(command) + " --help")
-            output.append("```")
-            output.append(result.output.replace("Usage: cli", "Usage: llm").strip())
-            output.append("```")
-        return "\n".join(output)
-
-
-
-
-
