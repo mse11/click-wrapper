@@ -3,6 +3,8 @@ from dataclasses import dataclass, field, asdict
 
 from click_wrapper.importer import ClickImporter
 
+################################################################################################################
+
 @dataclass
 class ClickParamData:
     """Information about a Click command parameter."""
@@ -15,9 +17,15 @@ class ClickParamData:
     nargs: int = 1
     multiple: bool = False
     help: str = ""
+    envvar: Union[str, None] = None
 
+    ##############
+    # api extra
+    ##############
     def to_dict(self) -> dict:
         return asdict(self)
+
+################################################################################################################
 
 @dataclass
 class ClickCommandData:
@@ -32,8 +40,17 @@ class ClickCommandData:
     fnc_params: list[ClickParamData] = field(default_factory=list)
     fnc_subcommands: dict[str, 'ClickCommandData'] = field(default_factory=dict)
 
+    ##############
+    # api extra
+    ##############
+    @property
+    def is_leaf(self):
+        return False if len(self.fnc_subcommands) else True
+
     def to_dict(self) -> dict:
         return asdict(self)
+
+################################################################################################################
 
 @dataclass
 class ClickMetadata:
@@ -41,8 +58,9 @@ class ClickMetadata:
     cmd_path: list[str]
     cmd_data: ClickCommandData
 
-    # def cmd_path_to_string(self):
-    #     cmd_path = " ".join(self.cmd_path[1:]) if len(self.cmd_path) > 1 else ""
+    ##############
+    # api extra
+    ##############
 
     @property
     def name_short(self) -> List[List[str]]:
@@ -56,30 +74,37 @@ class ClickMetadata:
     @property
     def name_full_joined(self) -> List[str]:
         return self._name(full_path=True, joined = True)
+    @property
+    def is_leaf(self):
+        return self.cmd_data.is_leaf
 
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    ##############
+    # internal
+    ##############
     def _name(self, full_path: bool = False, joined: bool = False) -> Union[List[str], List[List[str]]]:
         prefix = [self.cmd_base] if full_path else []
         # Remove first item of each list (it is e.g. 'cli')
         name = prefix + self.cmd_path[1:]
         return " ".join(name) if joined else name
 
-    def to_dict(self) -> dict:
-        return asdict(self)
 
-########################################################
+################################################################################################################
 
 @dataclass
 class ClickParser:
     importer: ClickImporter
     metadata: List[ClickMetadata] = field(default_factory=list)
 
-    def to_dict(self, full_dict: bool = False) -> Dict[str, Dict[str,Dict]]:
-        data = {}
-        for m in self.metadata:
-            cmd_path = m.name_short_joined or self.importer.py_import_package
-            data[cmd_path] = m.cmd_data.to_dict() if full_dict else m.cmd_data
-        return data
+    def __post_init__(self):
+        if not self.importer.py_import_path_attribute:
+            raise ValueError("ClickImporter 'module_global_attribute' must be set ")
 
+    ##############
+    # api extra
+    ##############
     @property
     def script_string_import(self) -> str:
         return self.importer.build_import_line()
@@ -92,8 +117,37 @@ class ClickParser:
     def script_string_package(self) -> str:
         return str(self.importer.py_import_package)
 
+    @property
+    def names_short(self):
+        return [m.name_short for m in self.metadata]
+
+    @property
+    def names_short_joined(self):
+        return [m.name_short_joined for m in self.metadata]
+
+    @property
+    def names_full_joined(self):
+        return [m.name_full_joined for m in self.metadata]
+
+    @property
+    def commands_map(self) -> Dict[str, ClickMetadata]:
+        return self._commands_map(full_dict=False)
+
+    ##############
+    # internal
+    ##############
+    def _commands_map(self, full_dict: bool = False) -> Union[Dict[str, ClickMetadata], Dict[str, Dict[str,Dict]]]:
+        data = {}
+        for m in self.metadata:
+            cmd_path = m.name_short_joined or self.importer.py_import_package
+            data[cmd_path] = m.cmd_data.to_dict() if full_dict else m.cmd_data
+        return data
+
+    ##############
+    # parsing
+    ##############
     @staticmethod
-    def click_parse(importer: ClickImporter) -> 'ClickParser':
+    def factory(importer: ClickImporter) -> 'ClickParser':
         """Traverse Click command tree and return metadata"""
         parser = ClickParser(importer)
 
@@ -167,6 +221,7 @@ class ClickParser:
             nargs=getattr(param, "nargs", 1),
             multiple=getattr(param, "multiple", False),
             help=getattr(param, "help", ""),
+            envvar=param.envvar,
         )
 
     @staticmethod

@@ -2,32 +2,28 @@ from typing import Dict, Union, List, Tuple, Any, Optional
 from click.testing import CliRunner
 
 from click_wrapper import ClickImporter
-from click_wrapper import ClickParser
+from click_wrapper import ClickParser, ClickMetadata
 
 class ClickGenerator:
 
     def __init__(self, importer: ClickImporter):
-
-        if not importer.py_import_path_attribute:
-            raise ValueError("ClickImporter 'module_global_attribute' must be set ")
-
-        self._parser = ClickParser.click_parse(importer)
+        self._parser = ClickParser.factory(importer)
 
     @property
     def commands_names_short(self):
-        return [m.name_short for m in self._parser.metadata]
+        return self._parser.names_short
 
     @property
     def commands_names_short_joined(self):
-        return [m.name_short_joined for m in self._parser.metadata]
+        return self._parser.names_short_joined
 
     @property
     def commands_names_full_joined(self):
-        return [m.name_full_joined for m in self._parser.metadata]
+        return self._parser.names_full_joined
 
     @property
-    def commands(self) -> Dict[str, Dict[str,Dict]]:
-        return self._parser.to_dict()
+    def commands(self) -> Dict[str, ClickMetadata]:
+        return self._parser.commands_map
 
     @property
     def commands_help_dump(self) -> str:

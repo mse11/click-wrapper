@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Automatic Python wrapper generator for Click CLI applications. Generate type-safe dataclasses and wrapper methods from Click command introspection"
 readme = "README.md"
 authors = [{name = "Michal Sestrienka"}]
-license = "Apache-2.0"
+license = {file = "LICENSE"}
 requires-python = ">=3.10"
 classifiers = []
 dependencies = [
