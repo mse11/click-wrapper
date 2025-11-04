@@ -1,3 +1,4 @@
+from click import Command
 from typing import Dict, Union, List, Tuple, Any, Optional
 from dataclasses import dataclass, field, asdict
 
@@ -133,6 +134,10 @@ class ClickParser:
     def commands_map(self) -> Dict[str, ClickMetadata]:
         return self._commands_map(full_dict=False)
 
+    @property
+    def commands_as_dict(self) -> Dict[str, Dict[str,Dict]]:
+        return self._commands_map(full_dict=True)
+
     ##############
     # internal
     ##############
@@ -155,7 +160,7 @@ class ClickParser:
         #  - First find all commands and subcommands
         #  - List will be [ (["command"], click_object), (["command", "subcommand"], click_object) ...]
 
-        def find_commands(command_obj, parent_cmds_names = None):
+        def find_commands(command_obj: Command, parent_cmds_names = None):
             parent_cmds_names  = parent_cmds_names or []
             current_cmds_names = parent_cmds_names + [command_obj.name]
 
@@ -175,13 +180,13 @@ class ClickParser:
         return parser
 
     @staticmethod
-    def _click_parse_command_obj(command) -> ClickCommandData:
+    def _click_parse_command_obj(click_command_obj) -> ClickCommandData:
         """Extract metadata from a Click command as a CommandMetadata dataclass."""
 
         # Extract parameters
         params = []
         dbg_params = []
-        for param in command.params:
+        for param in click_command_obj.params:
             param_info = ClickParser._click_parse_param_obj(param)
             params.append(param_info)
             dbg_params.append(param.name)
@@ -189,39 +194,39 @@ class ClickParser:
         # Extract subcommands
         subcommands = {}
         dbg_subcommands = []
-        if hasattr(command, "commands"):
+        if hasattr(click_command_obj, "commands"):
             subcommands = {
                 name: ClickParser._click_parse_command_obj(subcmd)
-                for name, subcmd in command.commands.items()
+                for name, subcmd in click_command_obj.commands.items()
             }
-            dbg_subcommands = list(command.commands.keys())
+            dbg_subcommands = list(click_command_obj.commands.keys())
 
         return ClickCommandData(
-            fnc_name=command.name,
-            default_cmd_name=getattr(command, "default_cmd_name", None),
-            default_if_no_args=getattr(command, "default_if_no_args", None),
+            fnc_name=click_command_obj.name,
+            default_cmd_name=getattr(click_command_obj, "default_cmd_name", None),
+            default_if_no_args=getattr(click_command_obj, "default_if_no_args", None),
             fnc_dbg_params=dbg_params,
             fnc_dbg_subcommands=dbg_subcommands,
-            fnc_help_short=command.short_help or "",
-            fnc_help=command.help or "",
+            fnc_help_short=click_command_obj.short_help or "",
+            fnc_help=click_command_obj.help or "",
             fnc_params=params,
             fnc_subcommands=subcommands,
         )
 
     @staticmethod
-    def _click_parse_param_obj(param) -> ClickParamData:
+    def _click_parse_param_obj(click_param_obj) -> ClickParamData:
         """Extract parameter information into a ParamInfo dataclass."""
         return ClickParamData(
-            name=param.name,
-            param_type_name=param.param_type_name,
-            opts=getattr(param, "opts", []),
-            secondary_opts=getattr(param, "secondary_opts", []),
-            required=getattr(param, "required", False),
-            default=ClickParser._safe_serialize(getattr(param, "default", None)),
-            nargs=getattr(param, "nargs", 1),
-            multiple=getattr(param, "multiple", False),
-            help=getattr(param, "help", ""),
-            envvar=param.envvar,
+            name=click_param_obj.name,
+            param_type_name=click_param_obj.param_type_name,
+            opts=getattr(click_param_obj, "opts", []),
+            secondary_opts=getattr(click_param_obj, "secondary_opts", []),
+            required=getattr(click_param_obj, "required", False),
+            default=ClickParser._safe_serialize(getattr(click_param_obj, "default", None)),
+            nargs=getattr(click_param_obj, "nargs", 1),
+            multiple=getattr(click_param_obj, "multiple", False),
+            help=getattr(click_param_obj, "help", ""),
+            envvar=click_param_obj.envvar,
         )
 
     @staticmethod

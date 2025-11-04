@@ -1,12 +1,13 @@
 from typing import Dict, Union, List, Tuple, Any, Optional
-from click.testing import CliRunner
 
 from click_wrapper import ClickImporter
 from click_wrapper import ClickParser, ClickMetadata
+from click_wrapper import ClickRunner
 
 class ClickGenerator:
 
     def __init__(self, importer: ClickImporter):
+        self._cli = ClickRunner(importer.click_obj_cli_main, importer.py_import_package)
         self._parser = ClickParser.factory(importer)
 
     @property
@@ -22,8 +23,12 @@ class ClickGenerator:
         return self._parser.names_full_joined
 
     @property
-    def commands(self) -> Dict[str, ClickMetadata]:
+    def commands_map(self) -> Dict[str, ClickMetadata]:
         return self._parser.commands_map
+
+    @property
+    def commands_as_dict(self) -> Dict[str, Dict[str,Dict]]:
+        return self._parser.commands_as_dict
 
     @property
     def commands_help_dump(self) -> str:
@@ -38,14 +43,14 @@ class ClickGenerator:
         output = []
         for command in commands:
             heading_level = len(command) + 2
-            result = CliRunner().invoke(self._parser.importer.click_obj_cli_main, command + ["--help"])
+            result = self._cli.run_command(command + ["--help"])
             hyphenated = "-".join(command)
             if hyphenated:
                 hyphenated = "-" + hyphenated
             output.append(f"\n(help{hyphenated})=")
             output.append("#" * heading_level + " llm " + " ".join(command) + " --help")
             output.append("```")
-            output.append(result.output.replace("Usage: cli", "Usage: llm").strip())
+            output.append(result.replace("Usage: cli", "Usage: llm").strip())
             output.append("```")
         return "\n".join(output)
 

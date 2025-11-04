@@ -1,6 +1,7 @@
 import importlib
-
-from typing import Any
+from typing import Union
+from types import ModuleType
+from click import Command
 
 class ClickImporter:
 
@@ -16,7 +17,7 @@ class ClickImporter:
         self.py_import_path_attribute: str = py_import_path_attribute
         self.py_import_package: str = py_import_path.split(".")[0]
 
-        self.click_obj_cli_main = self._import_from_string()
+        self.click_obj_cli_main: Union[ModuleType, Command] = self._import_from_string()
 
     def build_import_line(self):
         return (
@@ -25,7 +26,7 @@ class ClickImporter:
                 f'import {self.py_import_path}'
         )
 
-    def _import_from_string(self) -> Any:
+    def _import_from_string(self) -> Union[ModuleType, Command]:
 
         ret_val = None
         try:

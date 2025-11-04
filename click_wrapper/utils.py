@@ -1,13 +1,14 @@
+from click import Command
+from typing import Dict, List, Union
+from types import ModuleType
 
-from click_wrapper import ClickImporter
+from click_wrapper import ClickImporter, ClickMetadata
 from click_wrapper import ClickGenerator
-
-from typing import Any, Dict, List
 
 class ClickUtils:
 
     @staticmethod
-    def import_from_string(py_import_path: str, py_import_path_attribute: str = None) -> Any:
+    def import_from_string(py_import_path: str, py_import_path_attribute: str = None) -> Union[ModuleType, Command]:
         """
         Dynamically import a module or attribute from a module using string paths.
 
@@ -51,17 +52,17 @@ class ClickUtils:
             return ClickGenerator(importer).commands_names_short_joined
 
     @staticmethod
+    def commands_metadata(module_import_path: str, module_global_attribute: str) -> Dict[str, ClickMetadata]:
+        importer = ClickImporter(
+            py_import_path=module_import_path,
+            py_import_path_attribute=module_global_attribute,
+        )
+        return ClickGenerator(importer).commands_map
+
+    @staticmethod
     def help_dump(module_import_path: str, module_global_attribute: str) -> str:
         importer = ClickImporter(
             py_import_path=module_import_path,
             py_import_path_attribute=module_global_attribute,
         )
         return ClickGenerator(importer).commands_help_dump
-
-    @staticmethod
-    def parse_cli_metadata(module_import_path: str, module_global_attribute: str) -> Dict[str, Dict[str,Dict]]:
-        importer = ClickImporter(
-            py_import_path=module_import_path,
-            py_import_path_attribute=module_global_attribute,
-        )
-        return ClickGenerator(importer).commands
