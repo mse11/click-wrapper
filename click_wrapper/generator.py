@@ -1,8 +1,11 @@
 from typing import Dict, Union, List, Tuple, Any, Optional
 
-from click_wrapper import ClickImporter
-from click_wrapper import ClickParser, ClickMetadata
-from click_wrapper import ClickRunner
+from click_wrapper import (
+    ClickImporter,
+    ClickParser,
+    ClickMetadata,
+    ClickRunner,
+)
 
 class ClickGenerator:
 
@@ -53,4 +56,3 @@ class ClickGenerator:
             output.append(result.replace("Usage: cli", "Usage: llm").strip())
             output.append("```")
         return "\n".join(output)
-

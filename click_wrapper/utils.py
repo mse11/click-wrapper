@@ -2,8 +2,13 @@ from click import Command
 from typing import Dict, List, Union
 from types import ModuleType
 
-from click_wrapper import ClickImporter, ClickMetadata
-from click_wrapper import ClickGenerator
+from click_wrapper import (
+    ClickImporter,
+    ClickParser,
+    ClickMetadata,
+    ClickGenerator,
+    ClickWrapper,
+)
 
 class ClickUtils:
 
@@ -60,9 +65,21 @@ class ClickUtils:
         return ClickGenerator(importer).commands_map
 
     @staticmethod
-    def help_dump(module_import_path: str, module_global_attribute: str) -> str:
+    def dump_help(module_import_path: str, module_global_attribute: str) -> str:
         importer = ClickImporter(
             py_import_path=module_import_path,
             py_import_path_attribute=module_global_attribute,
         )
         return ClickGenerator(importer).commands_help_dump
+
+    @staticmethod
+    def dump_wrapper(module_import_path: str, module_global_attribute: str):
+        # Example: Generate wrapper for 'llm' CLI tool
+        importer = ClickImporter(
+            py_import_path=module_import_path,
+            py_import_path_attribute=module_global_attribute,
+        )
+        parser = ClickParser.factory(importer)
+
+        generated_code = ClickWrapper.generate_wrapper_code(parser)
+        return generated_code

@@ -56,19 +56,23 @@ def test_api_metadata_commands_names():
         full_path=True)
     assert sorted(known_llm_commands_full) == sorted(commands_names)
 
-def test_api_help_dump():
-    help_string = ClickUtils.help_dump("llm.cli", "cli")
+def test_api_dump_help():
+    help_string = ClickUtils.dump_help("llm.cli", "cli")
     assert help_string.startswith("\n(help)=\n## llm  --help")
     print(help_string)
 
+def test_api_dump_wrapper():
+    help_string = ClickUtils.dump_wrapper("llm.cli", "cli")
+    #assert help_string.startswith("\n(help)=\n## llm  --help")
+    # print(help_string)
+
 def test_api_parse_cli_metadata():
     metadata = ClickUtils.commands_metadata("llm.cli", "cli")
-    print()
-    import pprint
-    pprint.pprint(metadata, sort_dicts=False)
+    # print()
+    # import pprint
+    # pprint.pprint(metadata, sort_dicts=False)
     # assert sorted(known_llm_commands) == sorted(metadata['help_texts'].keys())
     # assert sorted(known_llm_commands) == sorted(metadata['metadata'].keys())
-
 
 def test_runner():
     importer = ClickImporter(
