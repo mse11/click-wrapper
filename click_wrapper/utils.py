@@ -43,13 +43,13 @@ class ClickUtils:
 
     @staticmethod
     def commands_names(
-            module_import_path: str,
-            module_global_attribute: str,
+            py_import_path: str,
+            py_import_path_attribute: str,
             full_path: bool
     ) -> List[str]:
         importer = ClickImporter(
-            py_import_path=module_import_path,
-            py_import_path_attribute=module_global_attribute,
+            py_import_path=py_import_path,
+            py_import_path_attribute=py_import_path_attribute,
         )
         if full_path:
             return ClickGenerator(importer).commands_names_full_joined
@@ -57,29 +57,25 @@ class ClickUtils:
             return ClickGenerator(importer).commands_names_short_joined
 
     @staticmethod
-    def commands_metadata(module_import_path: str, module_global_attribute: str) -> Dict[str, ClickMetadata]:
+    def commands_metadata(py_import_path: str, py_import_path_attribute: str) -> Dict[str, ClickMetadata]:
         importer = ClickImporter(
-            py_import_path=module_import_path,
-            py_import_path_attribute=module_global_attribute,
+            py_import_path=py_import_path,
+            py_import_path_attribute=py_import_path_attribute,
         )
         return ClickGenerator(importer).commands_map
 
     @staticmethod
-    def dump_help(module_import_path: str, module_global_attribute: str) -> str:
+    def dump_help(py_import_path: str, py_import_path_attribute: str) -> str:
         importer = ClickImporter(
-            py_import_path=module_import_path,
-            py_import_path_attribute=module_global_attribute,
+            py_import_path=py_import_path,
+            py_import_path_attribute=py_import_path_attribute,
         )
         return ClickGenerator(importer).commands_help_dump
 
     @staticmethod
-    def dump_wrapper(module_import_path: str, module_global_attribute: str):
-        # Example: Generate wrapper for 'llm' CLI tool
+    def dump_wrapper(py_import_path: str, py_import_path_attribute: str, output_file: str = None):
         importer = ClickImporter(
-            py_import_path=module_import_path,
-            py_import_path_attribute=module_global_attribute,
+            py_import_path=py_import_path,
+            py_import_path_attribute=py_import_path_attribute,
         )
-        parser = ClickParser.factory(importer)
-
-        generated_code = ClickWrapper.generate_wrapper_code(parser)
-        return generated_code
+        return ClickWrapper.generate_wrapper_code(importer, output_file)

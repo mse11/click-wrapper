@@ -34,14 +34,23 @@ known_llm_commands_full = [
 ]
 
 def test_api_string_imports():
-    cli_obj = ClickUtils.import_from_string("llm.cli", "cli")
-    module_obj = ClickUtils.import_from_string("llm.cli")
+    cli_obj = ClickUtils.import_from_string(
+        py_import_path="llm.cli",
+        py_import_path_attribute="cli"
+    )
+    module_obj = ClickUtils.import_from_string(py_import_path="llm.cli")
 
     with pytest.raises(AttributeError):
-        ClickUtils.import_from_string("llm.cli", "cli_wrong_object_name")
+        ClickUtils.import_from_string(
+            py_import_path="llm.cli",
+            py_import_path_attribute="cli_WRONG_OBJ_NAME"
+        )
 
     with pytest.raises(ImportError):
-        ClickUtils.import_from_string("llm.cli_wrong_module_name")
+        ClickUtils.import_from_string(
+            py_import_path="llm.cli_WRONG_MODULE_NAME",
+            py_import_path_attribute="cli"
+        )
 
 def test_api_metadata_commands_names():
     commands_names = ClickUtils.commands_names(
@@ -57,17 +66,26 @@ def test_api_metadata_commands_names():
     assert sorted(known_llm_commands_full) == sorted(commands_names)
 
 def test_api_dump_help():
-    help_string = ClickUtils.dump_help("llm.cli", "cli")
+    help_string = ClickUtils.dump_help(
+        py_import_path="llm.cli",
+        py_import_path_attribute="cli"
+    )
     assert help_string.startswith("\n(help)=\n## llm  --help")
     print(help_string)
 
 def test_api_dump_wrapper():
-    help_string = ClickUtils.dump_wrapper("llm.cli", "cli")
+    help_string = ClickUtils.dump_wrapper(
+        py_import_path="llm.cli",
+        py_import_path_attribute="cli"
+    )
     #assert help_string.startswith("\n(help)=\n## llm  --help")
     # print(help_string)
 
 def test_api_parse_cli_metadata():
-    metadata = ClickUtils.commands_metadata("llm.cli", "cli")
+    metadata = ClickUtils.commands_metadata(
+        py_import_path="llm.cli",
+        py_import_path_attribute="cli"
+    )
     # print()
     # import pprint
     # pprint.pprint(metadata, sort_dicts=False)

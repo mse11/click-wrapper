@@ -1,32 +1,38 @@
 from typing import Dict, Union, List, Tuple, Any, Optional
 
+from pathlib import Path
+
 from click_wrapper import (
     ClickParser,
-    ClickMetadata,
-    ClickRunner,
+    ClickImporter,
     ClickParamData,
 )
 
 class ClickWrapper:
     """Generates wrapper code for Click CLI commands."""
 
-    def __init__(self, parser: ClickParser):
-        self.parser = parser
+    def __init__(self, importer: ClickImporter):
+        self.parser = ClickParser.factory(importer)
         self.indent = "    "
 
     @staticmethod
-    def generate_wrapper_code(parser: ClickParser) -> str:
+    def generate_wrapper_code(importer: ClickImporter, output_file: str = None) -> str:
         """
         Convenience function to generate wrapper code from a parser.
 
         Args:
-            parser: ClickParser instance with parsed commands
+            importer: ClickImporter instance
 
         Returns:
             Complete generated Python code as string
         """
-        generator = ClickWrapper(parser)
-        return generator.generate()
+        generator = ClickWrapper(importer)
+        codde_string =  generator.generate()
+
+        if output_file:
+            Path(output_file).write_text(codde_string)
+
+        return codde_string
 
     def generate(self) -> str:
         """Generate complete wrapper code including imports, dataclasses, and methods."""
