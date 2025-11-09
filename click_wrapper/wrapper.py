@@ -3,6 +3,8 @@ from typing import Dict, Union, List, Tuple, Any, Optional
 from pathlib import Path
 
 from click_wrapper import (
+    ClickMetadata,
+    ClickCommandData,
     ClickParser,
     ClickImporter,
     ClickParamData,
@@ -14,6 +16,10 @@ class ClickWrapper:
     def __init__(self, importer: ClickImporter):
         self.parser = ClickParser.factory(importer)
         self.indent = "    "
+
+    ##############
+    # api extra
+    ##############
 
     @staticmethod
     def generate_wrapper_code(importer: ClickImporter, output_file: str = None) -> str:
@@ -39,46 +45,55 @@ class ClickWrapper:
         parts = [
             self._generate_imports(),
             self._generate_base_exception(),
-            self._generate_all_dataclasses(),
+            self._generate_dataclasses(),
             self._generate_wrapper_class(),
         ]
         return "\n\n".join(parts)
 
+    ##############
+    # internal imports
+    ##############
     def _generate_imports(self) -> str:
         """Generate import statements."""
-        return """from typing import Dict, Union, List, Tuple, Any, Optional
-from dataclasses import dataclass
-from click import Command
-from click.testing import CliRunner"""
+        return '\n'.join([
+            "from typing import Dict, Union, List, Tuple, Any, Optional",
+            "from dataclasses import dataclass",
+            "from click import Command",
+            "from click.testing import CliRunner"
+        ])
 
+    ##############
+    # internal exception
+    ##############
     def _generate_base_exception(self) -> str:
         """Generate base exception class."""
-        return """class ClickWrapperError(Exception):
-    \"\"\"Exception raised when cli command fails\"\"\"
-    pass"""
+        return '\n'.join([
+            f"class ClickWrapperError(Exception):",
+            f"{self.indent}\"\"\"Exception raised when cli command fails\"\"\"",
+            f"{self.indent}pass"
+        ])
 
-    def _generate_all_dataclasses(self) -> str:
+    ##############
+    # internal dataclass (input parameters)
+    ##############
+    def _generate_dataclasses(self) -> str:
         """Generate dataclasses for all leaf commands."""
         dataclasses = []
         for name, metadata in self.parser.commands_map.items():
             if metadata.is_leaf:
-                dataclass_code = self._generate_dataclass(name, metadata)
+                dataclass_code = self._generate_dataclass(name, metadata.cmd_data)
                 dataclasses.append(dataclass_code)
         return "\n\n".join(dataclasses)
 
-    def _generate_dataclass(self, cmd_name: str, cmd_data) -> str:
+    def _generate_dataclass(self, cmd_name: str, cmd_data: ClickCommandData) -> str:
         """Generate a dataclass for a specific command."""
-        class_name = self._get_dataclass_name(cmd_name)
-
-        # Build help text for the dataclass
-        class_help = cmd_data.fnc_help or cmd_data.fnc_help_short or f"Options for {cmd_name} command"
-
         lines = [
             "@dataclass",
-            f"class {class_name}:",
-            f'{self.indent}"""',
-            f"{self.indent}{class_help}",
-            f'{self.indent}"""',
+            f"class {self._get_dataclass_name(cmd_name)}:",
+            # f'{self.indent}"""',
+            #f"{self.indent}{cmd_data.to_help_string_lines()}"
+            # f'{self.indent}"""',
+            *cmd_data.to_help_string_lines(indent=self.indent, no_help_msg=f"Options for '{cmd_name}' command")
         ]
 
         # Generate fields
@@ -86,12 +101,12 @@ from click.testing import CliRunner"""
             lines.append(f"{self.indent}pass")
         else:
             for param in cmd_data.fnc_params:
-                field_lines = self._generate_field(param)
+                field_lines = self._generate_dataclass_parameter(param)
                 lines.extend(field_lines)
 
         return "\n".join(lines)
 
-    def _generate_field(self, param: ClickParamData) -> List[str]:
+    def _generate_dataclass_parameter(self, param: ClickParamData) -> List[str]:
         """Generate dataclass field with type hints and docstring."""
         lines = []
 
@@ -115,74 +130,9 @@ from click.testing import CliRunner"""
 
         return lines
 
-    def _get_python_type(self, param: ClickParamData) -> str:
-        """Determine Python type annotation from Click parameter."""
-        base_type = None
-
-        # Map Click types to Python types
-        type_mapping = {
-            "text": "str",
-            "integer": "int",
-            "float": "float",
-            "boolean": "bool",
-            "argument": "str",
-            "option": "str",
-        }
-
-        base_type = type_mapping.get(param.param_type_name.lower(), "str")
-
-        # Handle multiple values
-        if param.multiple or param.nargs > 1 or param.nargs == -1:
-            # Check if it's a tuple type (like attachment_types)
-            if "tuple" in param.param_type_name.lower() or (
-                    param.opts and any("--" in opt and len(opt.split()) > 1 for opt in param.opts)):
-                base_type = f"List[Tuple[str, str]]"
-            else:
-                base_type = f"List[{base_type}]"
-
-        # Make optional if not required
-        if not param.required:
-            base_type = f"Optional[{base_type}]"
-
-        return base_type
-
-    def _get_default_value(self, param: ClickParamData) -> str:
-        """Get default value for field."""
-        if param.multiple or param.nargs > 1 or param.nargs == -1:
-            return "None"
-
-        if param.default is not None and param.default != "":
-            if isinstance(param.default, bool):
-                return str(param.default)
-            elif isinstance(param.default, (int, float)):
-                return str(param.default)
-            elif isinstance(param.default, str):
-                return f'"{param.default}"'
-            else:
-                return "None"
-
-        # For flags/boolean options
-        if param.param_type_name.lower() == "boolean":
-            return "False"
-
-        return "None"
-
-    def _sanitize_field_name(self, name: str) -> str:
-        """Sanitize field name to be valid Python identifier."""
-        # Handle reserved keywords
-        if name in ("continue", "from", "import", "class", "for", "if", "while"):
-            return f"{name}_"
-
-        # Replace hyphens with underscores
-        return name.replace("-", "_")
-
-    def _get_dataclass_name(self, cmd_name: str) -> str:
-        """Generate dataclass name from command name."""
-        # Split by spaces, capitalize each part, and join
-        parts = cmd_name.split()
-        class_name = "".join(part.capitalize() for part in parts) + "Options"
-        return class_name
-
+    ##############
+    # internal class (wrapper with commands)
+    ##############
     def _generate_wrapper_class(self) -> str:
         """Generate the main wrapper class with all command methods."""
         lines = [
@@ -232,13 +182,13 @@ from click.testing import CliRunner"""
         # Generate methods for all leaf commands
         for name, metadata in self.parser.commands_map.items():
             if metadata.is_leaf:
-                method_lines = self._generate_method(name, metadata)
+                method_lines = self._generate_wrapper_method(name, metadata.cmd_data)
                 lines.append("")
                 lines.extend(method_lines)
 
         return "\n".join(lines)
 
-    def _generate_method(self, cmd_name: str, cmd_data) -> List[str]:
+    def _generate_wrapper_method(self, cmd_name: str, cmd_data: ClickCommandData) -> List[str]:
         """Generate a wrapper method for a specific command."""
         method_name = self._get_method_name(cmd_name)
         class_name = self._get_dataclass_name(cmd_name)
@@ -249,7 +199,11 @@ from click.testing import CliRunner"""
             "",
             f"{self.indent}def {method_name}(self, options: Optional[{class_name}] = None, stdin_input: Optional[str] = None) -> str:",
             f'{self.indent}{self.indent}"""',
-            f"{self.indent}{self.indent}{cmd_data.fnc_help or cmd_data.fnc_help_short or f'Execute {cmd_name} command'}",
+            *cmd_data.to_help_string_lines(
+                indent=self.indent + self.indent,
+                no_help_msg=f'Execute {cmd_name} command', 
+                use_borders=False
+            ),
             f"{self.indent}{self.indent}",
             f"{self.indent}{self.indent}Args:",
             f"{self.indent}{self.indent}    options: {class_name} dataclass (uses defaults if None)",
@@ -330,4 +284,75 @@ from click.testing import CliRunner"""
         """Generate method name from command name."""
         # Replace spaces with underscores, make lowercase
         return cmd_name.replace(" ", "_").replace("-", "_").lower()
+
+    ##############
+    # internal helpers
+    ##############
+    def _get_python_type(self, param: ClickParamData) -> str:
+        """Determine Python type annotation from Click parameter."""
+        base_type = None
+
+        # Map Click types to Python types
+        type_mapping = {
+            "text": "str",
+            "integer": "int",
+            "float": "float",
+            "boolean": "bool",
+            "argument": "str",
+            "option": "str",
+        }
+
+        base_type = type_mapping.get(param.param_type_name.lower(), "str")
+
+        # Handle multiple values
+        if param.multiple or param.nargs > 1 or param.nargs == -1:
+            # Check if it's a tuple type (like attachment_types)
+            if "tuple" in param.param_type_name.lower() or (
+                    param.opts and any("--" in opt and len(opt.split()) > 1 for opt in param.opts)):
+                base_type = f"List[Tuple[str, str]]"
+            else:
+                base_type = f"List[{base_type}]"
+
+        # Make optional if not required
+        if not param.required:
+            base_type = f"Optional[{base_type}]"
+
+        return base_type
+
+    def _get_default_value(self, param: ClickParamData) -> str:
+        """Get default value for field."""
+        if param.multiple or param.nargs > 1 or param.nargs == -1:
+            return "None"
+
+        if param.default is not None and param.default != "":
+            if isinstance(param.default, bool):
+                return str(param.default)
+            elif isinstance(param.default, (int, float)):
+                return str(param.default)
+            elif isinstance(param.default, str):
+                return f'"{param.default}"'
+            else:
+                return "None"
+
+        # For flags/boolean options
+        if param.param_type_name.lower() == "boolean":
+            return "False"
+
+        return "None"
+
+    def _sanitize_field_name(self, name: str) -> str:
+        """Sanitize field name to be valid Python identifier."""
+        # Handle reserved keywords
+        if name in ("continue", "from", "import", "class", "for", "if", "while"):
+            return f"{name}_"
+
+        # Replace hyphens with underscores
+        return name.replace("-", "_")
+
+    def _get_dataclass_name(self, cmd_name: str) -> str:
+        """Generate dataclass name from command name."""
+        # Split by spaces, capitalize each part, and join
+        parts = cmd_name.split()
+        class_name = "".join(part.capitalize() for part in parts) + "Options"
+        return class_name
 

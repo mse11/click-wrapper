@@ -2,7 +2,29 @@ from click import Command
 from typing import Dict, Union, List, Tuple, Any, Optional
 from dataclasses import dataclass, field, asdict
 
+from pygments.lexers.wgsl import ident_pattern_token
+
 from click_wrapper.importer import ClickImporter
+
+
+class ClickHelp:
+    @staticmethod
+    def to_help_string_lines(
+            help_msg,
+            indent: str,
+            *,
+            dump_empty: bool = False,
+            use_borders: bool = True
+    ) -> List[str]:
+        lines = []
+        if help_msg or dump_empty:
+            if use_borders:
+                lines.append(f'{indent}"""')
+            for l in help_msg.split('\n'):
+                lines.append(f"{indent}{l}")
+            if use_borders:
+                lines.append(f'{indent}"""')
+        return lines
 
 ################################################################################################################
 
@@ -25,6 +47,9 @@ class ClickParamData:
     ##############
     def to_dict(self) -> dict:
         return asdict(self)
+
+    def to_help_string_lines(self, indent: str , dump_empty: bool = False) -> List[str]:
+        return ClickHelp.to_help_string_lines(self.help, indent, dump_empty=dump_empty)
 
 ################################################################################################################
 
@@ -50,6 +75,20 @@ class ClickCommandData:
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+    def to_help_string_lines(
+            self,
+            indent: str,
+            no_help_msg: str = None,
+            dump_empty: bool = False,
+            use_borders: bool = True
+    ) -> List[str]:
+        return ClickHelp.to_help_string_lines(
+            help_msg=self.fnc_help or self.fnc_help_short or no_help_msg,
+            indent=indent,
+            dump_empty=dump_empty,
+            use_borders=use_borders
+        )
 
 ################################################################################################################
 
@@ -145,7 +184,7 @@ class ClickParser:
         data = {}
         for m in self.metadata:
             cmd_path = m.name_short_joined or self.importer.py_import_package
-            data[cmd_path] = m.cmd_data.to_dict() if full_dict else m.cmd_data
+            data[cmd_path] = m.to_dict() if full_dict else m
         return data
 
     ##############

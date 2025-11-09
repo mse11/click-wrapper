@@ -76,7 +76,8 @@ def test_api_dump_help():
 def test_api_dump_wrapper():
     help_string = ClickUtils.dump_wrapper(
         py_import_path="llm.cli",
-        py_import_path_attribute="cli"
+        py_import_path_attribute="cli",
+        output_file="output_wrapper.py"
     )
     #assert help_string.startswith("\n(help)=\n## llm  --help")
     # print(help_string)
