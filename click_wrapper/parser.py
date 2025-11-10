@@ -1,18 +1,16 @@
 from click import Command
+from click.core import UNSET
+
 from typing import Dict, Union, List, Tuple, Any, Optional
 from dataclasses import dataclass, field, asdict
 
-from pygments.lexers.wgsl import ident_pattern_token
-
 from click_wrapper.importer import ClickImporter
-
 
 class ClickHelp:
     @staticmethod
     def to_help_string_lines(
             help_msg,
             indent: str,
-            *,
             dump_empty: bool = False,
             use_borders: bool = True
     ) -> List[str]:
@@ -25,6 +23,13 @@ class ClickHelp:
             if use_borders:
                 lines.append(f'{indent}"""')
         return lines
+
+    @staticmethod
+    def sanitize_help_string(help_str):
+        if isinstance(help_str, str):
+            help_str = help_str.replace('\b', '')
+        return help_str
+
 
 ################################################################################################################
 
@@ -49,7 +54,11 @@ class ClickParamData:
         return asdict(self)
 
     def to_help_string_lines(self, indent: str , dump_empty: bool = False) -> List[str]:
-        return ClickHelp.to_help_string_lines(self.help, indent, dump_empty=dump_empty)
+        return ClickHelp.to_help_string_lines(
+            f"{self.help}. Environment variable '{self.envvar}'" if self.envvar else self.help,
+            indent,
+            dump_empty=dump_empty
+        )
 
 ################################################################################################################
 
@@ -227,6 +236,8 @@ class ClickParser:
         dbg_params = []
         for param in click_command_obj.params:
             param_info = ClickParser._click_parse_param_obj(param)
+            # if 'attachment_types' == param_info.name:
+            #     print(param_info.help)
             params.append(param_info)
             dbg_params.append(param.name)
 
@@ -247,7 +258,7 @@ class ClickParser:
             fnc_dbg_params=dbg_params,
             fnc_dbg_subcommands=dbg_subcommands,
             fnc_help_short=click_command_obj.short_help or "",
-            fnc_help=click_command_obj.help or "",
+            fnc_help=ClickHelp.sanitize_help_string(click_command_obj.help or ""),
             fnc_params=params,
             fnc_subcommands=subcommands,
         )
@@ -264,7 +275,7 @@ class ClickParser:
             default=ClickParser._safe_serialize(getattr(click_param_obj, "default", None)),
             nargs=getattr(click_param_obj, "nargs", 1),
             multiple=getattr(click_param_obj, "multiple", False),
-            help=getattr(click_param_obj, "help", ""),
+            help=ClickHelp.sanitize_help_string(getattr(click_param_obj, "help", "")),
             envvar=click_param_obj.envvar,
         )
 
@@ -273,6 +284,8 @@ class ClickParser:
         """Safely serialize Click objects and sentinels to JSON-friendly values."""
         if isinstance(value, (str, int, float, bool)) or value is None:
             return value
+        if value is UNSET:
+            return None
         if isinstance(value, (list, tuple, set)):
             return [ClickParser._safe_serialize(v) for v in value]
         if isinstance(value, dict):

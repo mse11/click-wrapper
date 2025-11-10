@@ -90,9 +90,6 @@ class ClickWrapper:
         lines = [
             "@dataclass",
             f"class {self._get_dataclass_name(cmd_name)}:",
-            # f'{self.indent}"""',
-            #f"{self.indent}{cmd_data.to_help_string_lines()}"
-            # f'{self.indent}"""',
             *cmd_data.to_help_string_lines(indent=self.indent, no_help_msg=f"Options for '{cmd_name}' command")
         ]
 
@@ -121,10 +118,8 @@ class ClickWrapper:
         lines.append(f"{self.indent}{field_name}: {py_type} = {default_value}")
 
         # Generate docstring for the field
-        if param.help:
-            lines.append(f'{self.indent}"""')
-            lines.append(f"{self.indent}{param.help}")
-            lines.append(f'{self.indent}"""')
+        for docstring_line in param.to_help_string_lines(indent=self.indent):
+            lines.append(docstring_line)
 
         lines.append("")  # Empty line between fields
 
