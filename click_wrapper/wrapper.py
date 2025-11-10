@@ -309,7 +309,9 @@ class ClickWrapper:
                 base_type = f"List[{base_type}]"
 
         # Make optional if not required
-        if not param.required:
+        if param.required or param.param_type_is_argument:
+            base_type = f"{base_type}"
+        else:
             base_type = f"Optional[{base_type}]"
 
         return base_type
@@ -347,7 +349,7 @@ class ClickWrapper:
     def _get_dataclass_name(self, cmd_name: str) -> str:
         """Generate dataclass name from command name."""
         # Split by spaces, capitalize each part, and join
-        parts = cmd_name.split()
+        parts = cmd_name.replace("-"," ").split()
         class_name = "".join(part.capitalize() for part in parts) + "Options"
         return class_name
 

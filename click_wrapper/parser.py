@@ -38,6 +38,8 @@ class ClickParamData:
     """Information about a Click command parameter."""
     name: str
     param_type_name: str
+    param_type_is_argument: bool
+    param_type_is_option: bool
     opts: list[str] = field(default_factory=list)
     secondary_opts: list[str] = field(default_factory=list)
     required: bool = False
@@ -269,6 +271,8 @@ class ClickParser:
         return ClickParamData(
             name=click_param_obj.name,
             param_type_name=click_param_obj.param_type_name,
+            param_type_is_argument=click_param_obj.param_type_name == 'argument',
+            param_type_is_option=click_param_obj.param_type_name == 'option',
             opts=getattr(click_param_obj, "opts", []),
             secondary_opts=getattr(click_param_obj, "secondary_opts", []),
             required=getattr(click_param_obj, "required", False),
