@@ -110,12 +110,14 @@ class ClickWrapper:
         # Determine the Python type
         py_type = self._get_python_type(param)
 
-        # Determine default value
-        default_value = self._get_default_value(param)
-
         # Generate field with type annotation
         field_name = self._sanitize_field_name(param.name)
-        lines.append(f"{self.indent}{field_name}: {py_type} = {default_value}")
+        if param.is_mandatory_python():
+            lines.append(f"{self.indent}{field_name}: {py_type}")
+        else:
+            # Determine default value
+            default_value = self._get_default_value(param)
+            lines.append(f"{self.indent}{field_name}: {py_type} = {default_value}")
 
         # Generate docstring for the field
         for docstring_line in param.to_help_string_lines(indent=self.indent):
@@ -192,7 +194,11 @@ class ClickWrapper:
         lines = [
             f"{self.indent}# {'=' * 10} {cmd_name.upper()} COMMAND {'=' * 10}",
             "",
-            f"{self.indent}def {method_name}(self, options: Optional[{class_name}] = None, stdin_input: Optional[str] = None) -> str:",
+            (
+                f"{self.indent}def {method_name}(self, opts: Optional[{class_name}] = None, stdin_input: Optional[str] = None) -> str:"
+                if not cmd_data.has_mandatory else
+                f"{self.indent}def {method_name}(self, opts: {class_name}, stdin_input: Optional[str] = None) -> str:"
+            ),
             f'{self.indent}{self.indent}"""',
             *cmd_data.to_help_string_lines(
                 indent=self.indent + self.indent,
@@ -201,14 +207,18 @@ class ClickWrapper:
             ),
             f"{self.indent}{self.indent}",
             f"{self.indent}{self.indent}Args:",
-            f"{self.indent}{self.indent}    options: {class_name} dataclass (uses defaults if None)",
+            (
+                f"{self.indent}{self.indent}    opts: {class_name} dataclass (uses defaults if None)"
+                if not cmd_data.has_mandatory else
+                f"{self.indent}{self.indent}    opts: {class_name} dataclass"
+            ),
             f"{self.indent}{self.indent}    stdin_input: Optional stdin input",
             f"{self.indent}{self.indent}",
             f"{self.indent}{self.indent}Returns:",
             f"{self.indent}{self.indent}    Command output",
             f'{self.indent}{self.indent}"""',
-            f"{self.indent}{self.indent}if options is None:",
-            f"{self.indent}{self.indent}{self.indent}options = {class_name}()",
+            f"{self.indent}{self.indent}if opts is None:" if not cmd_data.has_mandatory else None,
+            f"{self.indent}{self.indent}{self.indent}opts = {class_name}()" if not cmd_data.has_mandatory else None,
             f"{self.indent}{self.indent}",
             f"{self.indent}{self.indent}args = {cmd_path}",
             f"{self.indent}{self.indent}",
@@ -220,10 +230,10 @@ class ClickWrapper:
 
         lines.append(f"{self.indent}{self.indent}return self.run_command(args, input=stdin_input)")
 
-        return lines
+        return [l for l in lines if l is not None]
 
     def _generate_arg_building(self, cmd_data) -> List[str]:
-        """Generate code to build command arguments from options."""
+        """Generate code to build command arguments from opts."""
         lines = []
 
         for param in cmd_data.fnc_params:
@@ -234,32 +244,32 @@ class ClickWrapper:
 
             if param.param_type_name.lower() == "boolean":
                 # Boolean flags
-                lines.append(f"{self.indent}{self.indent}if options.{field_name}:")
+                lines.append(f"{self.indent}{self.indent}if opts.{field_name}:")
                 lines.append(f"{self.indent}{self.indent}{self.indent}args.append('{opt_flag}')")
             elif param.multiple or param.nargs > 1 or param.nargs == -1:
                 # Multiple values
-                lines.append(f"{self.indent}{self.indent}if options.{field_name}:")
+                lines.append(f"{self.indent}{self.indent}if opts.{field_name}:")
                 if "tuple" in self._get_python_type(param).lower():
-                    lines.append(f"{self.indent}{self.indent}{self.indent}for item in options.{field_name}:")
+                    lines.append(f"{self.indent}{self.indent}{self.indent}for item in opts.{field_name}:")
                     lines.append(
                         f"{self.indent}{self.indent}{self.indent}{self.indent}args.extend(['{opt_flag}', item[0], item[1]])")
                 else:
-                    lines.append(f"{self.indent}{self.indent}{self.indent}for item in options.{field_name}:")
+                    lines.append(f"{self.indent}{self.indent}{self.indent}for item in opts.{field_name}:")
                     lines.append(
                         f"{self.indent}{self.indent}{self.indent}{self.indent}args.extend(['{opt_flag}', item])")
             elif param.param_type_name.lower() == "argument":
                 # Positional arguments
-                lines.append(f"{self.indent}{self.indent}if options.{field_name}:")
-                lines.append(f"{self.indent}{self.indent}{self.indent}args.append(options.{field_name})")
+                lines.append(f"{self.indent}{self.indent}if opts.{field_name}:")
+                lines.append(f"{self.indent}{self.indent}{self.indent}args.append(opts.{field_name})")
             else:
-                # Regular options with values
+                # Regular opts with values
                 default_check = ""
                 if param.default is not None and param.default != "" and not isinstance(param.default, bool):
-                    default_check = f" or options.{field_name} != {self._get_default_value(param)}"
+                    default_check = f" or opts.{field_name} != {self._get_default_value(param)}"
 
-                lines.append(f"{self.indent}{self.indent}if options.{field_name}{default_check}:")
+                lines.append(f"{self.indent}{self.indent}if opts.{field_name}{default_check}:")
                 lines.append(
-                    f"{self.indent}{self.indent}{self.indent}args.extend(['{opt_flag}', str(options.{field_name})])")
+                    f"{self.indent}{self.indent}{self.indent}args.extend(['{opt_flag}', str(opts.{field_name})])")
 
             lines.append("")
 
@@ -298,6 +308,7 @@ class ClickWrapper:
         }
 
         base_type = type_mapping.get(param.param_type_name.lower(), "str")
+        base_type = "bool" if param.is_flag else base_type
 
         # Handle multiple values
         if param.multiple or param.nargs > 1 or param.nargs == -1:
@@ -309,7 +320,7 @@ class ClickWrapper:
                 base_type = f"List[{base_type}]"
 
         # Make optional if not required
-        if param.required or param.param_type_is_argument:
+        if param.is_mandatory_python():
             base_type = f"{base_type}"
         else:
             base_type = f"Optional[{base_type}]"

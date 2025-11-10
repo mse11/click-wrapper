@@ -25,9 +25,12 @@ class ClickHelp:
         return lines
 
     @staticmethod
-    def sanitize_help_string(help_str):
+    def sanitize_help_string(help_str, prefix: str = "", suffix: str = ""):
         if isinstance(help_str, str):
+            #git gui
             help_str = help_str.replace('\b', '')
+            help_str =  "\n".join([ l for l in help_str.split("\n") if l.strip()])
+            help_str = prefix + help_str + suffix
         return help_str
 
 
@@ -40,6 +43,7 @@ class ClickParamData:
     param_type_name: str
     param_type_is_argument: bool
     param_type_is_option: bool
+    is_flag: bool
     opts: list[str] = field(default_factory=list)
     secondary_opts: list[str] = field(default_factory=list)
     required: bool = False
@@ -52,6 +56,9 @@ class ClickParamData:
     ##############
     # api extra
     ##############
+    def is_mandatory_python(self):
+        return self.required #or self.param_type_is_argument
+
     def to_dict(self) -> dict:
         return asdict(self)
 
@@ -83,6 +90,18 @@ class ClickCommandData:
     @property
     def is_leaf(self):
         return False if len(self.fnc_subcommands) else True
+
+    @property
+    def has_mandatory(self):
+        return True if len(self.params_mandatory) > 0 else False
+
+    @property
+    def params_mandatory(self):
+        return [p for p in self.fnc_params if p.is_mandatory_python()]
+
+    @property
+    def params_optional(self):
+        return [p for p in self.fnc_params if not p.is_mandatory_python()]
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -273,13 +292,17 @@ class ClickParser:
             param_type_name=click_param_obj.param_type_name,
             param_type_is_argument=click_param_obj.param_type_name == 'argument',
             param_type_is_option=click_param_obj.param_type_name == 'option',
+            is_flag=getattr(click_param_obj, "is_flag", False),
             opts=getattr(click_param_obj, "opts", []),
             secondary_opts=getattr(click_param_obj, "secondary_opts", []),
             required=getattr(click_param_obj, "required", False),
             default=ClickParser._safe_serialize(getattr(click_param_obj, "default", None)),
             nargs=getattr(click_param_obj, "nargs", 1),
             multiple=getattr(click_param_obj, "multiple", False),
-            help=ClickHelp.sanitize_help_string(getattr(click_param_obj, "help", "")),
+            help=ClickHelp.sanitize_help_string(
+                help_str=getattr(click_param_obj, "help", ""),
+                prefix=f"{click_param_obj.param_type_name}{"_flag" if getattr(click_param_obj, "is_flag", False) else ""}: "
+            ),
             envvar=click_param_obj.envvar,
         )
 
