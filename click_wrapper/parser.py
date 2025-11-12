@@ -1,12 +1,32 @@
+import pathlib
+import uuid
+
 from click import Command
+from click import types
 from click.core import UNSET
 
-from typing import Dict, Union, List, Tuple, Any, Optional
+from typing import Dict, Union, List, Tuple, Any, Type, Optional
 from dataclasses import dataclass, field, asdict
 
 from click_wrapper.importer import ClickImporter
 
-class ClickHelp:
+class ClickHelper:
+
+    type_mapping: dict[Type[types.ParamType], Type] = {
+        types.StringParamType: str,
+        types.IntParamType: int,
+        types.FloatParamType: float,
+        types.BoolParamType: bool,
+        types.UUIDParameterType: str,  # uuid.UUID
+        types.File: Any,  # File objects
+        types.Path: str,  # pathlib.Path
+        types.Choice: str,
+        types.IntRange: int,
+        types.FloatRange: float,
+        types.DateTime: str,  # or datetime.datetime
+        types.Tuple: tuple
+    }
+
     @staticmethod
     def to_help_string_lines(
             help_msg,
@@ -33,6 +53,35 @@ class ClickHelp:
             help_str = prefix + help_str + suffix
         return help_str
 
+    @staticmethod
+    def click_type_to_python_type_as_string(
+            click_param_type: types.ParamType,
+            default_type_class: Type
+    ) -> str:
+        """Get the string representation of the base Python type."""
+
+        python_type: Type = ClickHelper.click_type_to_python_type(click_param_type, default_type_class)
+        # Convert Type to string representation
+        if hasattr(python_type, '__name__'):
+            return python_type.__name__
+
+        return str(python_type)
+
+    @staticmethod
+    def click_type_to_python_type(
+            click_param_type: types.ParamType,
+            default_type_class: Type
+    ) -> Type:
+        py_type: Type = default_type_class
+        if ClickHelper.is_click_type(click_param_type):
+            py_type = ClickHelper.type_mapping[type(click_param_type)]
+        else:
+            print(f"{str(click_param_type)} not in type mapping dictionary")
+        return py_type
+
+    @staticmethod
+    def is_click_type(click_param_type: types.ParamType) -> bool:
+        return type(click_param_type) in ClickHelper.type_mapping
 
 ################################################################################################################
 
@@ -40,6 +89,7 @@ class ClickHelp:
 class ClickParamData:
     """Information about a Click command parameter."""
     name: str
+    param_type_click: types.ParamType
     param_type_name: str
     param_type_is_argument: bool
     param_type_is_option: bool
@@ -63,11 +113,55 @@ class ClickParamData:
         return asdict(self)
 
     def to_help_string_lines(self, indent: str , dump_empty: bool = False) -> List[str]:
-        return ClickHelp.to_help_string_lines(
+        return ClickHelper.to_help_string_lines(
             f"{self.help}. Environment variable '{self.envvar}'" if self.envvar else self.help,
             indent,
             dump_empty=dump_empty
         )
+
+    def as_string_python_type(self) -> str:
+        """Determine Python type annotation string from Click parameter."""
+
+        # Get base type using the mapping
+        base_type = ClickHelper.click_type_to_python_type_as_string(self.param_type_click, str)
+
+        # Handle multiple values
+        if self.multiple or self.nargs > 1 or self.nargs == -1:
+            if isinstance(self.param_type_click, types.Tuple):
+                # Get tuple element types as strings
+                element_types = ', '.join(
+                    ClickHelper.click_type_to_python_type_as_string(t, str) for t in self.param_type_click.types
+                )
+                base_type = f"List[Tuple[{element_types}]]"
+            else:
+                base_type = f"List[{base_type}]"
+
+        # Make optional if not required
+        if not self.is_mandatory_python():
+            base_type = f"Optional[{base_type}]"
+
+        return base_type
+
+    def as_string_default_value(self) -> str:
+        """Get default value for field."""
+        if self.multiple or self.nargs > 1 or self.nargs == -1:
+            return "None"
+
+        if self.default is not None and self.default != "":
+            if isinstance(self.default, bool):
+                return str(self.default)
+            elif isinstance(self.default, (int, float)):
+                return str(self.default)
+            elif isinstance(self.default, str):
+                return f'"{self.default}"'
+            else:
+                return "None"
+
+        # For flags/boolean options
+        if self.param_type_name.lower() == "boolean":
+            return "False"
+
+        return "None"
 
 ################################################################################################################
 
@@ -113,7 +207,7 @@ class ClickCommandData:
             dump_empty: bool = False,
             use_borders: bool = True
     ) -> List[str]:
-        return ClickHelp.to_help_string_lines(
+        return ClickHelper.to_help_string_lines(
             help_msg=self.fnc_help or self.fnc_help_short or no_help_msg,
             indent=indent,
             dump_empty=dump_empty,
@@ -279,7 +373,7 @@ class ClickParser:
             fnc_dbg_params=dbg_params,
             fnc_dbg_subcommands=dbg_subcommands,
             fnc_help_short=click_command_obj.short_help or "",
-            fnc_help=ClickHelp.sanitize_help_string(click_command_obj.help or ""),
+            fnc_help=ClickHelper.sanitize_help_string(click_command_obj.help or ""),
             fnc_params=params,
             fnc_subcommands=subcommands,
         )
@@ -289,6 +383,7 @@ class ClickParser:
         """Extract parameter information into a ParamInfo dataclass."""
         return ClickParamData(
             name=click_param_obj.name,
+            param_type_click=click_param_obj.type,
             param_type_name=click_param_obj.param_type_name,
             param_type_is_argument=click_param_obj.param_type_name == 'argument',
             param_type_is_option=click_param_obj.param_type_name == 'option',
@@ -299,9 +394,9 @@ class ClickParser:
             default=ClickParser._safe_serialize(getattr(click_param_obj, "default", None)),
             nargs=getattr(click_param_obj, "nargs", 1),
             multiple=getattr(click_param_obj, "multiple", False),
-            help=ClickHelp.sanitize_help_string(
+            help=ClickHelper.sanitize_help_string(
                 help_str=getattr(click_param_obj, "help", ""),
-                prefix=f"{click_param_obj.param_type_name}{"_flag" if getattr(click_param_obj, "is_flag", False) else ""}: "
+                prefix=f"""{click_param_obj.param_type_name}{"_flag" if getattr(click_param_obj, "is_flag", False) else ""}: """
             ),
             envvar=click_param_obj.envvar,
         )

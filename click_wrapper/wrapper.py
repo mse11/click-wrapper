@@ -108,7 +108,7 @@ class ClickWrapper:
         lines = []
 
         # Determine the Python type
-        py_type = self._get_python_type(param)
+        py_type = param.as_string_python_type()
 
         # Generate field with type annotation
         field_name = self._sanitize_field_name(param.name)
@@ -116,7 +116,7 @@ class ClickWrapper:
             lines.append(f"{self.indent}{field_name}: {py_type}")
         else:
             # Determine default value
-            default_value = self._get_default_value(param)
+            default_value = param.as_string_default_value()
             lines.append(f"{self.indent}{field_name}: {py_type} = {default_value}")
 
         # Generate docstring for the field
@@ -249,7 +249,7 @@ class ClickWrapper:
             elif param.multiple or param.nargs > 1 or param.nargs == -1:
                 # Multiple values
                 lines.append(f"{self.indent}{self.indent}if opts.{field_name}:")
-                if "tuple" in self._get_python_type(param).lower():
+                if "tuple" in param.as_string_python_type():
                     lines.append(f"{self.indent}{self.indent}{self.indent}for item in opts.{field_name}:")
                     lines.append(
                         f"{self.indent}{self.indent}{self.indent}{self.indent}args.extend(['{opt_flag}', item[0], item[1]])")
@@ -265,7 +265,7 @@ class ClickWrapper:
                 # Regular opts with values
                 default_check = ""
                 if param.default is not None and param.default != "" and not isinstance(param.default, bool):
-                    default_check = f" or opts.{field_name} != {self._get_default_value(param)}"
+                    default_check = f" or opts.{field_name} != {param.as_string_default_value()}"
 
                 lines.append(f"{self.indent}{self.indent}if opts.{field_name}{default_check}:")
                 lines.append(
@@ -293,60 +293,6 @@ class ClickWrapper:
     ##############
     # internal helpers
     ##############
-    def _get_python_type(self, param: ClickParamData) -> str:
-        """Determine Python type annotation from Click parameter."""
-        base_type = None
-
-        # Map Click types to Python types
-        type_mapping = {
-            "text": "str",
-            "integer": "int",
-            "float": "float",
-            "boolean": "bool",
-            "argument": "str",
-            "option": "str",
-        }
-
-        base_type = type_mapping.get(param.param_type_name.lower(), "str")
-        base_type = "bool" if param.is_flag else base_type
-
-        # Handle multiple values
-        if param.multiple or param.nargs > 1 or param.nargs == -1:
-            # Check if it's a tuple type (like attachment_types)
-            if "tuple" in param.param_type_name.lower() or (
-                    param.opts and any("--" in opt and len(opt.split()) > 1 for opt in param.opts)):
-                base_type = f"List[Tuple[str, str]]"
-            else:
-                base_type = f"List[{base_type}]"
-
-        # Make optional if not required
-        if param.is_mandatory_python():
-            base_type = f"{base_type}"
-        else:
-            base_type = f"Optional[{base_type}]"
-
-        return base_type
-
-    def _get_default_value(self, param: ClickParamData) -> str:
-        """Get default value for field."""
-        if param.multiple or param.nargs > 1 or param.nargs == -1:
-            return "None"
-
-        if param.default is not None and param.default != "":
-            if isinstance(param.default, bool):
-                return str(param.default)
-            elif isinstance(param.default, (int, float)):
-                return str(param.default)
-            elif isinstance(param.default, str):
-                return f'"{param.default}"'
-            else:
-                return "None"
-
-        # For flags/boolean options
-        if param.param_type_name.lower() == "boolean":
-            return "False"
-
-        return "None"
 
     def _sanitize_field_name(self, name: str) -> str:
         """Sanitize field name to be valid Python identifier."""
