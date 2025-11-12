@@ -33,12 +33,12 @@ class ClickWrapper:
             Complete generated Python code as string
         """
         generator = ClickWrapper(importer)
-        codde_string =  generator.generate()
+        code_string =  generator.generate()
 
         if output_file:
-            Path(output_file).write_text(codde_string)
+            Path(output_file).write_text(code_string)
 
-        return codde_string
+        return code_string
 
     def generate(self) -> str:
         """Generate complete wrapper code including imports, dataclasses, and methods."""
@@ -133,7 +133,7 @@ class ClickWrapper:
     def _generate_wrapper_class(self) -> str:
         """Generate the main wrapper class with all command methods."""
         lines = [
-            "class ClickWrapper:",
+            f"class {self.parser.script_string_package.capitalize()}ClickWrapper:",
             f'{self.indent}"""',
             f"{self.indent}Wrapper for Click CLI operations using Click's CliRunner.",
             f"{self.indent}",

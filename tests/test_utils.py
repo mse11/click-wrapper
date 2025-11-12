@@ -2,8 +2,7 @@ import pytest
 
 from click_wrapper import (
     ClickUtils,
-    ClickRunner,
-    ClickRunnerError,
+    ClickImporterError,
     ClickImporter,
 )
 
@@ -79,8 +78,11 @@ def test_api_dump_wrapper():
         py_import_path_attribute="cli",
         output_file="output_wrapper.py"
     )
-    #assert help_string.startswith("\n(help)=\n## llm  --help")
-    # print(help_string)
+
+    # from output_wrapper import LlmClickWrapper
+    # wllm = LlmClickWrapper()
+
+
 
 def test_api_parse_cli_metadata():
     metadata = ClickUtils.commands_metadata(
@@ -99,15 +101,10 @@ def test_runner():
         py_import_path_attribute="cli",
     )
 
-    runner = ClickRunner(
-        cli_main_function=importer.click_obj_cli_main,
-        cmd_base=importer.py_import_package,
-    )
-
-    output = runner.run_command(["--help"])
+    output = importer.run_command(["--help"])
     # print(output)
     contain_string = 'Access Large Language Models from the command-line'
     assert contain_string in output, "Not found in help"
 
-    with pytest.raises(ClickRunnerError):
-        output = runner.run_command(["--helperMEEE"])
+    with pytest.raises(ClickImporterError):
+        output = importer.run_command(["--helperMEEE"])

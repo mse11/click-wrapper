@@ -4,13 +4,12 @@ from click_wrapper import (
     ClickImporter,
     ClickParser,
     ClickMetadata,
-    ClickRunner,
 )
 
 class ClickGenerator:
 
     def __init__(self, importer: ClickImporter):
-        self._cli = ClickRunner(importer.click_obj_cli_main, importer.py_import_package)
+        self._importer = importer
         self._parser = ClickParser.factory(importer)
 
     @property
@@ -46,7 +45,7 @@ class ClickGenerator:
         output = []
         for command in commands:
             heading_level = len(command) + 2
-            result = self._cli.run_command(command + ["--help"])
+            result = self._importer.run_command(command + ["--help"])
             hyphenated = "-".join(command)
             if hyphenated:
                 hyphenated = "-" + hyphenated
