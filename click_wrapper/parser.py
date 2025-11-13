@@ -10,7 +10,7 @@ from dataclasses import dataclass, field, asdict
 
 from click_wrapper.importer import ClickImporter
 
-class ClickHelper:
+class ClickDataUtils:
 
     type_mapping: dict[Type[types.ParamType], Type] = {
         types.StringParamType: str,
@@ -60,7 +60,7 @@ class ClickHelper:
     ) -> str:
         """Get the string representation of the base Python type."""
 
-        python_type: Type = ClickHelper.click_type_to_python_type(click_param_type, default_type_class)
+        python_type: Type = ClickDataUtils.click_type_to_python_type(click_param_type, default_type_class)
         # Convert Type to string representation
         if hasattr(python_type, '__name__'):
             return python_type.__name__
@@ -73,20 +73,20 @@ class ClickHelper:
             default_type_class: Type
     ) -> Type:
         py_type: Type = default_type_class
-        if ClickHelper.is_click_type(click_param_type):
-            py_type = ClickHelper.type_mapping[type(click_param_type)]
+        if ClickDataUtils.is_click_type(click_param_type):
+            py_type = ClickDataUtils.type_mapping[type(click_param_type)]
         else:
             print(f"{str(click_param_type)} not in type mapping dictionary")
         return py_type
 
     @staticmethod
     def is_click_type(click_param_type: types.ParamType) -> bool:
-        return type(click_param_type) in ClickHelper.type_mapping
+        return type(click_param_type) in ClickDataUtils.type_mapping
 
 ################################################################################################################
 
 @dataclass
-class ClickParamData:
+class ClickDataParam:
     """Information about a Click command parameter."""
     name: str
     param_type_click: types.ParamType
@@ -113,7 +113,7 @@ class ClickParamData:
         return asdict(self)
 
     def to_help_string_lines(self, indent: str , dump_empty: bool = False) -> List[str]:
-        return ClickHelper.to_help_string_lines(
+        return ClickDataUtils.to_help_string_lines(
             f"{self.help}. Environment variable '{self.envvar}'" if self.envvar else self.help,
             indent,
             dump_empty=dump_empty
@@ -123,14 +123,14 @@ class ClickParamData:
         """Determine Python type annotation string from Click parameter."""
 
         # Get base type using the mapping
-        base_type = ClickHelper.click_type_to_python_type_as_string(self.param_type_click, str)
+        base_type = ClickDataUtils.click_type_to_python_type_as_string(self.param_type_click, str)
 
         # Handle multiple values
         if self.multiple or self.nargs > 1 or self.nargs == -1:
             if isinstance(self.param_type_click, types.Tuple):
                 # Get tuple element types as strings
                 element_types = ', '.join(
-                    ClickHelper.click_type_to_python_type_as_string(t, str) for t in self.param_type_click.types
+                    ClickDataUtils.click_type_to_python_type_as_string(t, str) for t in self.param_type_click.types
                 )
                 base_type = f"List[Tuple[{element_types}]]"
             else:
@@ -166,7 +166,7 @@ class ClickParamData:
 ################################################################################################################
 
 @dataclass
-class ClickCommandData:
+class ClickDataCommand:
     """Metadata for a Click command."""
     fnc_name: str
     default_cmd_name: Optional[str] = None
@@ -175,8 +175,8 @@ class ClickCommandData:
     fnc_dbg_subcommands: list[str] = field(default_factory=list)
     fnc_help_short: str = ""
     fnc_help: str = ""
-    fnc_params: list[ClickParamData] = field(default_factory=list)
-    fnc_subcommands: dict[str, 'ClickCommandData'] = field(default_factory=dict)
+    fnc_params: list[ClickDataParam] = field(default_factory=list)
+    fnc_subcommands: dict[str, 'ClickDataCommand'] = field(default_factory=dict)
 
     ##############
     # api extra
@@ -207,7 +207,7 @@ class ClickCommandData:
             dump_empty: bool = False,
             use_borders: bool = True
     ) -> List[str]:
-        return ClickHelper.to_help_string_lines(
+        return ClickDataUtils.to_help_string_lines(
             help_msg=self.fnc_help or self.fnc_help_short or no_help_msg,
             indent=indent,
             dump_empty=dump_empty,
@@ -220,7 +220,7 @@ class ClickCommandData:
 class ClickMetadata:
     cmd_base: str
     cmd_path: list[str]
-    cmd_data: ClickCommandData
+    cmd_data: ClickDataCommand
 
     ##############
     # api extra
@@ -343,7 +343,7 @@ class ClickParser:
         return parser
 
     @staticmethod
-    def _click_parse_command_obj(click_command_obj) -> ClickCommandData:
+    def _click_parse_command_obj(click_command_obj) -> ClickDataCommand:
         """Extract metadata from a Click command as a CommandMetadata dataclass."""
 
         # Extract parameters
@@ -366,22 +366,22 @@ class ClickParser:
             }
             dbg_subcommands = list(click_command_obj.commands.keys())
 
-        return ClickCommandData(
+        return ClickDataCommand(
             fnc_name=click_command_obj.name,
             default_cmd_name=getattr(click_command_obj, "default_cmd_name", None),
             default_if_no_args=getattr(click_command_obj, "default_if_no_args", None),
             fnc_dbg_params=dbg_params,
             fnc_dbg_subcommands=dbg_subcommands,
             fnc_help_short=click_command_obj.short_help or "",
-            fnc_help=ClickHelper.sanitize_help_string(click_command_obj.help or ""),
+            fnc_help=ClickDataUtils.sanitize_help_string(click_command_obj.help or ""),
             fnc_params=params,
             fnc_subcommands=subcommands,
         )
 
     @staticmethod
-    def _click_parse_param_obj(click_param_obj) -> ClickParamData:
+    def _click_parse_param_obj(click_param_obj) -> ClickDataParam:
         """Extract parameter information into a ParamInfo dataclass."""
-        return ClickParamData(
+        return ClickDataParam(
             name=click_param_obj.name,
             param_type_click=click_param_obj.type,
             param_type_name=click_param_obj.param_type_name,
@@ -394,7 +394,7 @@ class ClickParser:
             default=ClickParser._safe_serialize(getattr(click_param_obj, "default", None)),
             nargs=getattr(click_param_obj, "nargs", 1),
             multiple=getattr(click_param_obj, "multiple", False),
-            help=ClickHelper.sanitize_help_string(
+            help=ClickDataUtils.sanitize_help_string(
                 help_str=getattr(click_param_obj, "help", ""),
                 prefix=f"""{click_param_obj.param_type_name}{"_flag" if getattr(click_param_obj, "is_flag", False) else ""}: """
             ),

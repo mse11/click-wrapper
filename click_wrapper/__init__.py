@@ -1,7 +1,7 @@
 from typing import Optional
 
 from .importer import ClickImporter, ClickImporterError
-from .parser import ClickParser, ClickMetadata, ClickCommandData, ClickParamData
+from .parser import ClickParser, ClickMetadata, ClickDataCommand, ClickDataParam
 from .wrapper import ClickWrapper
 from .generator import ClickGenerator
 from .utils import ClickUtils
@@ -11,8 +11,8 @@ __all__ = [
     "ClickImporter",
     "ClickParser",
     "ClickMetadata",
-    "ClickCommandData",
-    "ClickParamData",
+    "ClickDataCommand",
+    "ClickDataParam",
     "ClickGenerator",
     "ClickWrapper",
     "ClickUtils",

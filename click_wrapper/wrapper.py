@@ -3,10 +3,10 @@ import inspect
 from pathlib import Path
 
 from click_wrapper import (
-    ClickCommandData,
+    ClickDataCommand,
     ClickParser,
     ClickImporter,
-    ClickParamData,
+    ClickDataParam,
 )
 
 class ClickWrapper:
@@ -80,7 +80,7 @@ class ClickWrapper:
                 dataclasses.append(dataclass_code)
         return "\n\n".join(dataclasses)
 
-    def _generate_dataclass(self, cmd_name: str, cmd_data: ClickCommandData) -> str:
+    def _generate_dataclass(self, cmd_name: str, cmd_data: ClickDataCommand) -> str:
         """Generate a dataclass for a specific command."""
         lines = [
             "@dataclass",
@@ -98,7 +98,7 @@ class ClickWrapper:
 
         return "\n".join(lines)
 
-    def _generate_dataclass_parameter(self, param: ClickParamData) -> List[str]:
+    def _generate_dataclass_parameter(self, param: ClickDataParam) -> List[str]:
         """Generate dataclass field with type hints and docstring."""
         lines = []
 
@@ -158,7 +158,7 @@ class ClickWrapper:
 
         return "\n".join(lines)
 
-    def _generate_wrapper_method(self, cmd_name: str, cmd_data: ClickCommandData) -> List[str]:
+    def _generate_wrapper_method(self, cmd_name: str, cmd_data: ClickDataCommand) -> List[str]:
         """Generate a wrapper method for a specific command."""
         method_name = self._get_method_name(cmd_name)
         class_name = self._get_dataclass_name(cmd_name)
@@ -248,7 +248,7 @@ class ClickWrapper:
 
         return lines
 
-    def _get_option_flag(self, param: ClickParamData) -> str:
+    def _get_option_flag(self, param: ClickDataParam) -> str:
         """Get the primary option flag for a parameter."""
         if param.opts:
             # Prefer long options (--xxx) over short ones (-x)
