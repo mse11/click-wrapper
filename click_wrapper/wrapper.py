@@ -1,9 +1,8 @@
 from typing import Dict, Union, List, Tuple, Any, Optional
-
+import inspect
 from pathlib import Path
 
 from click_wrapper import (
-    ClickMetadata,
     ClickCommandData,
     ClickParser,
     ClickImporter,
@@ -44,7 +43,7 @@ class ClickWrapper:
         """Generate complete wrapper code including imports, dataclasses, and methods."""
         parts = [
             self._generate_imports(),
-            self._generate_base_exception(),
+            self._generate_base_class(),
             self._generate_dataclasses(),
             self._generate_wrapper_class(),
         ]
@@ -56,22 +55,18 @@ class ClickWrapper:
     def _generate_imports(self) -> str:
         """Generate import statements."""
         return '\n'.join([
-            "from typing import Dict, Union, List, Tuple, Any, Optional",
-            "from dataclasses import dataclass",
-            "from click import Command",
-            "from click.testing import CliRunner"
+            "from typing import Tuple",
+            "from dataclasses import dataclass"
         ])
 
     ##############
-    # internal exception
+    # internal base class (importer + runner)
     ##############
-    def _generate_base_exception(self) -> str:
+    def _generate_base_class(self) -> str:
         """Generate base exception class."""
-        return '\n'.join([
-            f"class ClickWrapperError(Exception):",
-            f"{self.indent}\"\"\"Exception raised when cli command fails\"\"\"",
-            f"{self.indent}pass"
-        ])
+        module = inspect.getmodule(ClickImporter)
+        source = inspect.getsource(module)
+        return source.replace(ClickImporter.__name__, self._get_class_base_name())
 
     ##############
     # internal dataclass (input parameters)
@@ -133,47 +128,25 @@ class ClickWrapper:
     def _generate_wrapper_class(self) -> str:
         """Generate the main wrapper class with all command methods."""
         lines = [
-            f"class {self.parser.script_string_package.capitalize()}ClickWrapper:",
+            f"class {self._get_class_wrapper_name()}({self._get_class_base_name()}):",
             f'{self.indent}"""',
-            f"{self.indent}Wrapper for Click CLI operations using Click's CliRunner.",
-            f"{self.indent}",
-            f"{self.indent}This wrapper provides a Pythonic interface to the Click command-line tool,",
+            f"{self.indent}This wrapper provides a Pythonic interface to the '{self.parser.script_string_package}' command-line tool,",
             f"{self.indent}allowing you to execute CLI commands programmatically without subprocess overhead.",
             f'{self.indent}"""',
             "",
-            f"{self.indent}def __init__(self, cli_main_function: Command, cmd_base: str):",
+            f"{self.indent}def __init__(self):",
             f'{self.indent}{self.indent}"""',
             f"{self.indent}{self.indent}Initialize the ClickWrapper.",
             f"{self.indent}{self.indent}",
-            f"{self.indent}{self.indent}Args:",
-            f"{self.indent}{self.indent}    cli_main_function: The main CLI function object",
-            f"{self.indent}{self.indent}    cmd_base: CLI tool name",
-            f'{self.indent}{self.indent}"""',
-            f"{self.indent}{self.indent}self.runner = CliRunner()",
-            f"{self.indent}{self.indent}self.cli_main_obj = cli_main_function",
-            f"{self.indent}{self.indent}self.cli_base = cmd_base",
-            "",
-            f"{self.indent}def run_command(self, args: List[str], input: Optional[str] = None) -> str:",
-            f'{self.indent}{self.indent}"""',
-            f"{self.indent}{self.indent}Run a CLI command and return the result.",
-            f"{self.indent}{self.indent}",
-            f"{self.indent}{self.indent}Args:",
-            f"{self.indent}{self.indent}    args: List of command arguments",
-            f"{self.indent}{self.indent}    input: Optional stdin input",
-            f"{self.indent}{self.indent}",
-            f"{self.indent}{self.indent}Returns:",
-            f"{self.indent}{self.indent}    Result output",
-            f"{self.indent}{self.indent}",
             f"{self.indent}{self.indent}Raises:",
-            f"{self.indent}{self.indent}    ClickWrapperError: If command fails",
+            f"{self.indent}{self.indent}    ImportError: If the module cannot be imported",
+            f"{self.indent}{self.indent}    AttributeError: If the specified attribute doesn't exist in the module",
             f'{self.indent}{self.indent}"""',
-            f"{self.indent}{self.indent}result = self.runner.invoke(self.cli_main_obj, args, input=input)",
-            f"{self.indent}{self.indent}",
-            f"{self.indent}{self.indent}if result.exit_code != 0:",
-            f"{self.indent}{self.indent}{self.indent}full_cmd = [self.cli_base] + args + ([input] if input else [])",
-            f'{self.indent}{self.indent}{self.indent}raise ClickWrapperError(f"""Command {{" ".join(full_cmd)}} failed: {{result.output}}""")',
-            f"{self.indent}{self.indent}",
-            f"{self.indent}{self.indent}return result.output",
+            f"{self.indent}{self.indent}super().__init__(",
+            f"{self.indent}{self.indent}{self.indent}py_import_path='{self.parser.script_string_import_path}',",
+            f"{self.indent}{self.indent}{self.indent}py_import_path_attribute='{self.parser.script_string_import_attribute}'",
+            f"{self.indent}{self.indent})",
+            ""
         ]
 
         # Generate methods for all leaf commands
@@ -195,9 +168,9 @@ class ClickWrapper:
             f"{self.indent}# {'=' * 10} {cmd_name.upper()} COMMAND {'=' * 10}",
             "",
             (
-                f"{self.indent}def {method_name}(self, opts: Optional[{class_name}] = None, stdin_input: Optional[str] = None) -> str:"
+                f"{self.indent}def cmd_{method_name}(self, opts: Optional[{class_name}] = None, stdin_input: Optional[str] = None) -> str:"
                 if not cmd_data.has_mandatory else
-                f"{self.indent}def {method_name}(self, opts: {class_name}, stdin_input: Optional[str] = None) -> str:"
+                f"{self.indent}def cmd_{method_name}(self, opts: {class_name}, stdin_input: Optional[str] = None) -> str:"
             ),
             f'{self.indent}{self.indent}"""',
             *cmd_data.to_help_string_lines(
@@ -290,6 +263,14 @@ class ClickWrapper:
         # Replace spaces with underscores, make lowercase
         return cmd_name.replace(" ", "_").replace("-", "_").lower()
 
+    def _get_class_base_name(self):
+        prefix = self.parser.script_string_package.capitalize()
+        return f'{prefix}{ClickImporter.__name__}'
+
+    def _get_class_wrapper_name(self):
+        prefix = self.parser.script_string_package.capitalize()
+        return f'{prefix}ClickWrapper'
+
     ##############
     # internal helpers
     ##############
@@ -309,4 +290,3 @@ class ClickWrapper:
         parts = cmd_name.replace("-"," ").split()
         class_name = "".join(part.capitalize() for part in parts) + "Options"
         return class_name
-

@@ -270,16 +270,16 @@ class ClickParser:
     # api extra
     ##############
     @property
-    def script_string_import(self) -> str:
-        return self.importer.build_import_line()
+    def script_string_import_path(self) -> str:
+        return self.importer.py_import_path
 
     @property
-    def script_string_cli_obj(self) -> str:
-        return str(self.importer.py_import_path_attribute)
+    def script_string_import_attribute(self) -> str:
+        return self.importer.py_import_path_attribute
 
     @property
     def script_string_package(self) -> str:
-        return str(self.importer.py_import_package)
+        return self.importer.py_import_package
 
     @property
     def names_short(self):

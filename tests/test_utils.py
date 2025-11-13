@@ -72,17 +72,18 @@ def test_api_dump_help():
     assert help_string.startswith("\n(help)=\n## llm  --help")
     print(help_string)
 
-def test_api_dump_wrapper():
+def test_api_dump_wrapper(output_dir):
+    output_file = output_dir / "llm_wrapper.py"
+
     help_string = ClickUtils.dump_wrapper(
         py_import_path="llm.cli",
         py_import_path_attribute="cli",
-        output_file="output_wrapper.py"
+        output_file=str(output_file)
     )
 
-    # from output_wrapper import LlmClickWrapper
-    # wllm = LlmClickWrapper()
-
-
+    from generated.llm_wrapper import LlmClickWrapper
+    llm_cli_wrapper = LlmClickWrapper()
+    llm_cli_wrapper.cmd_models_list()
 
 def test_api_parse_cli_metadata():
     metadata = ClickUtils.commands_metadata(

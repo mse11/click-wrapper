@@ -56,12 +56,12 @@ class ClickImporter:
 
         return result.output
 
-    def build_import_line(self):
-        return (
-                f'from {self.py_import_path} import {self.py_import_path_attribute}'
-                if self.py_import_path_attribute else
-                f'import {self.py_import_path}'
-        )
+    # def build_import_line(self):
+    #     return (
+    #             f'from {self.py_import_path} import {self.py_import_path_attribute}'
+    #             if self.py_import_path_attribute else
+    #             f'import {self.py_import_path}'
+    #     )
 
     def _import_from_string(self) -> Union[ModuleType, Command]:
 
