@@ -19,26 +19,6 @@ class ClickWrapper:
     ##############
     # api extra
     ##############
-
-    @staticmethod
-    def generate_wrapper_code(importer: ClickImporter, output_file: str = None) -> str:
-        """
-        Convenience function to generate wrapper code from a parser.
-
-        Args:
-            importer: ClickImporter instance
-
-        Returns:
-            Complete generated Python code as string
-        """
-        generator = ClickWrapper(importer)
-        code_string =  generator.generate()
-
-        if output_file:
-            Path(output_file).write_text(code_string)
-
-        return code_string
-
     def generate(self) -> str:
         """Generate complete wrapper code including imports, dataclasses, and methods."""
         parts = [

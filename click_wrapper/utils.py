@@ -51,10 +51,12 @@ class ClickUtils:
             py_import_path=py_import_path,
             py_import_path_attribute=py_import_path_attribute,
         )
+
+        parser = ClickParser.factory(importer)
         if full_path:
-            return ClickGenerator(importer).commands_names_full_joined
+            return parser.names_full_joined
         else:
-            return ClickGenerator(importer).commands_names_short_joined
+            return parser.names_short_joined
 
     @staticmethod
     def commands_metadata(py_import_path: str, py_import_path_attribute: str) -> Dict[str, ClickMetadata]:
@@ -62,7 +64,8 @@ class ClickUtils:
             py_import_path=py_import_path,
             py_import_path_attribute=py_import_path_attribute,
         )
-        return ClickGenerator(importer).commands_map
+        parser = ClickParser.factory(importer)
+        return parser.commands_map
 
     @staticmethod
     def dump_help(py_import_path: str, py_import_path_attribute: str) -> str:
@@ -70,7 +73,7 @@ class ClickUtils:
             py_import_path=py_import_path,
             py_import_path_attribute=py_import_path_attribute,
         )
-        return ClickGenerator(importer).commands_help_dump
+        return ClickGenerator.app_help_dump(importer)
 
     @staticmethod
     def dump_wrapper(py_import_path: str, py_import_path_attribute: str, output_file: str = None):
@@ -78,4 +81,4 @@ class ClickUtils:
             py_import_path=py_import_path,
             py_import_path_attribute=py_import_path_attribute,
         )
-        return ClickWrapper.generate_wrapper_code(importer, output_file)
+        return ClickGenerator.app_wrapper(importer, output_file)
