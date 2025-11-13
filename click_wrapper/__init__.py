@@ -4,7 +4,7 @@ from .importer import ClickImporter, ClickImporterError
 from .parser import ClickParser, ClickMetadata, ClickDataCommand, ClickDataParam
 from .wrapper import ClickWrapper
 from .generator import ClickGenerator
-from .utils import ClickUtils
+from .cli_utils import ClickUtils
 
 __all__ = [
     "ClickImporterError",
