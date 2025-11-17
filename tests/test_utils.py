@@ -83,6 +83,9 @@ def test_api_dump_wrapper(output_dir):
 
     from generated.llm_wrapper import LlmClickWrapper
     llm_cli_wrapper = LlmClickWrapper()
+    version_str_exp = 'cli, version 0.27.1\n'
+    version_str     = llm_cli_wrapper.cmd_version()
+    assert version_str == version_str_exp, f"LLM version does not match"
     llm_cli_wrapper.cmd_models_list()
 
 def test_api_parse_cli_metadata():
@@ -90,11 +93,10 @@ def test_api_parse_cli_metadata():
         py_import_path="llm.cli",
         py_import_path_attribute="cli"
     )
+
     # print()
-    # import pprint
-    # pprint.pprint(metadata, sort_dicts=False)
-    # assert sorted(known_llm_commands) == sorted(metadata['help_texts'].keys())
-    # assert sorted(known_llm_commands) == sorted(metadata['metadata'].keys())
+    # for c,m in metadata.items():
+    #     print(c,m)
 
 def test_runner():
     importer = ClickImporter(

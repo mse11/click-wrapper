@@ -129,6 +129,11 @@ class ClickWrapper:
             ""
         ]
 
+        # Generate method for version
+        for name, metadata in self.parser.commands_map.items():
+            if name == metadata.cmd_base and ('version' in metadata.cmd_data.fnc_dbg_params):
+                lines.extend(self._generate_wrapper_version())
+
         # Generate methods for all leaf commands
         for name, metadata in self.parser.commands_map.items():
             if metadata.is_leaf:
@@ -137,6 +142,19 @@ class ClickWrapper:
                 lines.extend(method_lines)
 
         return "\n".join(lines)
+
+    def _generate_wrapper_version(self, cmd_name: str = "version") -> List[str]:
+        """Generate a wrapper version command."""
+
+        lines = [
+            f"{self.indent}# {'=' * 10} VERSION COMMAND {'=' * 10}",
+            f"{self.indent}def cmd_{cmd_name}(self) -> str:", f'{self.indent}{self.indent}"""',
+            f'{self.indent}{self.indent}Get version string', f'{self.indent}{self.indent}"""',
+            f"{self.indent}{self.indent}args = ['--version']", f"{self.indent}{self.indent}",
+            f"{self.indent}{self.indent}return self.run_command(args)"
+        ]
+
+        return lines
 
     def _generate_wrapper_method(self, cmd_name: str, cmd_data: ClickDataCommand) -> List[str]:
         """Generate a wrapper method for a specific command."""
