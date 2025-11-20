@@ -16,7 +16,24 @@ While you can always use `subprocess` to access CLI, this wrapper approach provi
 — at least that's what works better for me! 😊
 
 ## Installation
+Package is NOT under `pypi`, so you can simply install it via `uvx` (`uvx` will create temporary environment) 
+```bash
+uvx --with git+https://github.com/mse11/click-wrapper click-wrapper --help
+```
 
+## Usage
+To be able to parse click application, you need to ensure following requirements (for all CLI subcommands):
+* install `foo` package in your python environment
+* provide path to module e.g. `foo.cli`, where `foo_main_cli_object` is defined 
+
+For example, for `llm` package (created by Simon Willison) you can run:     
+```bash
+ uvx --with "llm>=0.27.1" --with git+https://github.com/mse11/click-wrapper click-wrapper export-help llm.cli cli
+ uvx --with "llm>=0.27.1" --with git+https://github.com/mse11/click-wrapper click-wrapper export-wrapper llm.cli cli
+ uvx --with "llm>=0.27.1" --with git+https://github.com/mse11/click-wrapper click-wrapper metadata llm.cli cli
+```
+
+<!---
 Install this tool using `pip`:
 ```bash
 pip install click-wrapper
@@ -37,11 +54,13 @@ You can also use:
 ```bash
 python -m click_wrapper --help
 ```
+-->
+
 ## Development
 
-To contribute to this tool, first checkout the code. Then create a new virtual environment:
+To contribute to this tool, checkout the code and create a new virtual environment:
 
-1.a) using 'uv' (preffered)
+### Development using 'uv' (preffered)
 
 ```bash
 cd click-wrapper
@@ -50,8 +69,12 @@ uv sync --all-extras
 source .venv/bin/activate       # on Linux/Mac
 source .venv/Scripts/activate   # on Windows Gitbash
 ```
+Run the tests:
+```bash
+pytest
+```
 
-1.b) using 'venv'
+### Development using 'venv' (alternative approach)
 ```bash
 cd click-wrapper
 python -m venv .venv
@@ -64,7 +87,7 @@ Now install the dependencies and test dependencies:
 pip install -e '.[test]'
 ```
 
-2. To run the tests:
+Run the tests:
 ```bash
 python -m pytest
 ```
