@@ -5,8 +5,8 @@ from click_wrapper import ClickUtils
 
 @click.group(
     cls=DefaultGroup,
-    default="prompt", # TODO
-    default_if_no_args=True,
+#    default="metadata",       suppressed as requires at least package name
+#    default_if_no_args=True,  suppressed as requires at least package name
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 @click.version_option()
@@ -20,7 +20,7 @@ def cli():
 
 @cli.command(name="metadata")
 @click.argument("py_import_path")
-@click.argument("py_import_path_attribute")
+@click.argument("py_import_path_attribute", required=False)
 @click.option(
     "--format",
     "-f",
@@ -28,20 +28,25 @@ def cli():
     default="text",
     help="Output format for metadata"
 )
-def show_metadata(py_import_path: str, py_import_path_attribute: str, format: str):
+def show_metadata(py_import_path: str, py_import_path_attribute: Optional[str], format: str):
     """
     Show metadata for all commands in a Click application.
 
-    PY_IMPORT_PATH: Module path (e.g., 'llm.cli')
+    PY_IMPORT_PATH: Dot-separated python module path (e.g., 'llm.cli').
+        If a simple name is provided without py_import_path_attribute (e.g., 'llm'),
+        automatically expands to 'llm.__main__' with attribute 'cli'.
 
-    PY_IMPORT_PATH_ATTRIBUTE: Attribute name (e.g., 'cli')
+    PY_IMPORT_PATH_ATTRIBUTE: Optional attribute name to retrieve from the
+        'py_import_path' module. When None and py_import_path is a simple
+        module name, defaults to 'cli' from '__main__' module.
 
     Examples:
-
+        click-wrapper metadata llm
         click-wrapper metadata llm.cli cli
-
         click-wrapper metadata llm.cli cli --format json
     """
+
+    print(py_import_path, py_import_path_attribute)
     try:
         metadata = ClickUtils.commands_metadata(
             py_import_path,
@@ -73,25 +78,28 @@ def show_metadata(py_import_path: str, py_import_path_attribute: str, format: st
 
 @cli.command()
 @click.argument("py_import_path")
-@click.argument("py_import_path_attribute")
+@click.argument("py_import_path_attribute", required=False)
 @click.option(
     "--output",
     "-o",
     type=click.Path(),
     help="Write help output to file instead of stdout"
 )
-def export_help(py_import_path: str, py_import_path_attribute: str, output: Optional[str]):
+def export_help(py_import_path: str, py_import_path_attribute: Optional[str], output: Optional[str]):
     """
     Generate comprehensive help for a Click application.
 
-    PY_IMPORT_PATH: Module path (e.g., 'llm.cli')
+    PY_IMPORT_PATH: Dot-separated python module path (e.g., 'llm.cli').
+        If a simple name is provided without py_import_path_attribute (e.g., 'llm'),
+        automatically expands to 'llm.__main__' with attribute 'cli'.
 
-    PY_IMPORT_PATH_ATTRIBUTE: Attribute name (e.g., 'cli')
+    PY_IMPORT_PATH_ATTRIBUTE: Optional attribute name to retrieve from the
+        'py_import_path' module. When None and py_import_path is a simple
+        module name, defaults to 'cli' from '__main__' module.
 
     Examples:
-
+        click-wrapper help llm
         click-wrapper help llm.cli cli
-
         click-wrapper help llm.cli cli --output help.txt
     """
     try:
@@ -113,7 +121,7 @@ def export_help(py_import_path: str, py_import_path_attribute: str, output: Opti
 
 @cli.command()
 @click.argument("py_import_path")
-@click.argument("py_import_path_attribute")
+@click.argument("py_import_path_attribute", required=False)
 @click.option(
     "--output",
     "-o",
@@ -122,20 +130,23 @@ def export_help(py_import_path: str, py_import_path_attribute: str, output: Opti
 )
 def export_wrapper(
         py_import_path: str,
-        py_import_path_attribute: str,
+        py_import_path_attribute: Optional[str],
         output: Optional[str]
 ):
     """
     Generate a wrapper for a Click application.
 
-    PY_IMPORT_PATH: Module path (e.g., 'llm.cli')
+    PY_IMPORT_PATH: Dot-separated python module path (e.g., 'llm.cli').
+        If a simple name is provided without py_import_path_attribute (e.g., 'llm'),
+        automatically expands to 'llm.__main__' with attribute 'cli'.
 
-    PY_IMPORT_PATH_ATTRIBUTE: Attribute name (e.g., 'cli')
+    PY_IMPORT_PATH_ATTRIBUTE: Optional attribute name to retrieve from the
+        'py_import_path' module. When None and py_import_path is a simple
+        module name, defaults to 'cli' from '__main__' module.
 
     Examples:
-
+        click-wrapper wrapper llm
         click-wrapper wrapper llm.cli cli
-
         click-wrapper wrapper llm.cli cli --output wrapper.py
     """
     try:

@@ -9,24 +9,43 @@ Automatic Python wrapper generator for Click CLI applications. Generate type-saf
 
 ## Acknowledgments
 
-Code inspiration based on [LLM](https://github.com/simonw/llm) by Simon Willison. 
+Code inspiration based on [LLM](https://github.com/simonw/llm) by Simon Willison - mainly `click-wrapper export-help` subcommand. 
 
 Simon creates powerful CLI tools, but I wanted better Python API integration for programmatic use. 
 While you can always use `subprocess` to access CLI, this wrapper approach provides a more Pythonic interface with type safety and IDE support
 — at least that's what works better for me! 😊
 
 ## Installation
-Package is NOT under `pypi`, so you can simply install it via `uvx` (`uvx` will create temporary environment) 
+
+Package is NOT under `pypi`, so you can simply install it via `uvx` (`uvx` will create temporary environment, or `uv run`) 
 ```bash
 uvx --with git+https://github.com/mse11/click-wrapper click-wrapper --help
 ```
 
 ## Usage
+
 To be able to parse click application, you need to ensure following requirements (for all CLI subcommands):
 * install `foo` package in your python environment
-* provide path to module e.g. `foo.cli`, where `foo_main_cli_object` is defined 
+* provide path to module `foo` or `foo.cli`, where `foo_main_cli_object` is defined 
 
-For example, for `llm` package (created by Simon Willison) you can run:     
+For packages, which defines Click CLI entry point like this:
+
+```python
+### __main__.py ###
+from .cli import cli
+if __name__ == "__main__":
+    cli()
+```
+providing `foo` as package name is sufficient. Example for `llm` package:
+
+```bash
+ uvx --with "llm>=0.27.1" --with git+https://github.com/mse11/click-wrapper click-wrapper export-help llm
+ uvx --with "llm>=0.27.1" --with git+https://github.com/mse11/click-wrapper click-wrapper export-wrapper llm
+ uvx --with "llm>=0.27.1" --with git+https://github.com/mse11/click-wrapper click-wrapper metadata llm
+```
+
+Otherwise, provide Dot-separated python module path and `foo_main_cli_object`. Example for `llm` package:     
+
 ```bash
  uvx --with "llm>=0.27.1" --with git+https://github.com/mse11/click-wrapper click-wrapper export-help llm.cli cli
  uvx --with "llm>=0.27.1" --with git+https://github.com/mse11/click-wrapper click-wrapper export-wrapper llm.cli cli
@@ -58,9 +77,9 @@ python -m click_wrapper --help
 
 ## Development
 
-To contribute to this tool, checkout the code and create a new virtual environment:
+To setup dev environment, clone code and follow these steps:
 
-### Development using 'uv' (preffered)
+### Development using 'uv'
 
 ```bash
 cd click-wrapper
@@ -68,10 +87,6 @@ uv sync --all-extras
 
 source .venv/bin/activate       # on Linux/Mac
 source .venv/Scripts/activate   # on Windows Gitbash
-```
-Run the tests:
-```bash
-pytest
 ```
 
 ### Development using 'venv' (alternative approach)
@@ -87,7 +102,7 @@ Now install the dependencies and test dependencies:
 pip install -e '.[test]'
 ```
 
-Run the tests:
+### Run the tests:
 ```bash
-python -m pytest
+pytest
 ```

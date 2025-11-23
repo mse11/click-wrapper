@@ -33,6 +33,11 @@ known_llm_commands_full = [
 ]
 
 def test_api_string_imports():
+
+    cli_obj_from__main__file = ClickUtils.import_from_string(
+        py_import_path="llm"
+    )
+
     cli_obj = ClickUtils.import_from_string(
         py_import_path="llm.cli",
         py_import_path_attribute="cli"
@@ -53,14 +58,14 @@ def test_api_string_imports():
 
 def test_api_metadata_commands_names():
     commands_names = ClickUtils.commands_names(
-        "llm.cli",
-        "cli",
+        "llm",
+        # "cli",
         full_path=False)
     assert sorted(known_llm_commands) == sorted(commands_names)
 
     commands_names = ClickUtils.commands_names(
         "llm.cli",
-        "cli",
+        py_import_path_attribute="cli",
         full_path=True)
     assert sorted(known_llm_commands_full) == sorted(commands_names)
 
